@@ -73,6 +73,12 @@ pre { font-family:var(--mono); font-size:12px; line-height:1.6; white-space:pre-
 .activity { background:var(--paper); border-radius:10px; border:1px solid var(--line); padding:28px; }
 .empty-state { text-align:center; padding:50px 8px 65px; }.empty-state svg { width:80px; height:80px; stroke:var(--line); stroke-width:2; fill:none; margin-bottom:15px; }.empty-state h3 { font-size:18px; margin-bottom:8px; }.empty-state p { color:var(--muted); font-size:14px; max-width:30ch; margin:auto; }
 .job-list { display:flex; flex-direction:column; gap:6px; margin-bottom:24px; }.job-list:empty { margin:0; }
+.history-filters { display:grid; grid-template-columns:minmax(0,1fr) minmax(110px,.65fr); gap:12px; margin-bottom:18px; }
+.history-filters label { font-size:12px; }
+.history-filters input,.history-filters select { font-size:13px; padding:9px; }
+.history-pagination { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:24px; }
+.history-pagination .hint { text-align:center; margin:0; }
+@media(max-width:380px) { .history-filters { grid-template-columns:minmax(0,1fr); } }
 .job-select { display:flex; align-items:center; justify-content:space-between; gap:10px; text-align:left; white-space:normal; border:1px solid var(--line); border-radius:5px; padding:10px 12px; background:var(--paper); color:var(--ink); width:100%; }
 .job-select.selected { border-color:var(--petrol); background:var(--soft); }.job-select .job-label { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:13px; }.job-select .job-total { flex:none; font-size:12px; color:var(--muted); }
 .job-heading { display:flex; align-items:start; justify-content:space-between; gap:12px; margin-bottom:12px; }.job-heading h3 { min-width:0; }

@@ -1,3 +1,5 @@
+import { formatMessage } from './messages.js';
+
 const strings = {
   'app.title': ['Cào Cào · Tải dữ liệu về máy', 'Cào Cào · Download web data'],
   'brand.home': ['Cào Cào, trang chính', 'Cào Cào, home'],
@@ -64,6 +66,15 @@ const strings = {
   'job.manual': ['Tải theo cấu hình', 'Collect using configuration'],
   'activity.title': ['Lượt tải của bạn', 'Your collection runs'],
   'activity.refresh': ['Làm mới', 'Refresh'],
+  'history.search': ['Tìm lượt tải', 'Search runs'],
+  'history.placeholder': ['Tên hoặc mã tác vụ', 'Run name or ID'],
+  'history.status': ['Trạng thái', 'Status'],
+  'history.all': ['Tất cả', 'All statuses'],
+  'history.noMatches': ['Không có lượt tải phù hợp.', 'No matching runs.'],
+  'history.page': ['Trang {page}/{pages} · {total} lượt tải', 'Page {page}/{pages} · {total} runs'],
+  'history.pagination': ['Phân trang lượt tải', 'Run history pages'],
+  'history.previous': ['Trước', 'Previous'],
+  'history.next': ['Sau', 'Next'],
   'activity.emptyTitle': ['Chưa có lượt tải', 'No collection runs yet'],
   'activity.emptyDescription': ['Nhận diện một trang để xem dữ liệu có thể lấy và bắt đầu lưu về máy.', 'Analyze a page to see what data is available and start saving it to your computer.'],
   'job.progress': ['Tiến độ lấy dữ liệu', 'Data collection progress'],
@@ -129,187 +140,5 @@ export function translate(language, key, values = {}) {
   return interpolate(translations[normalizeLanguage(language)][key] ?? translations.vi[key] ?? key, values);
 }
 
-// Only tool-authored messages are passed here. Source records, names and exports stay verbatim.
-const messagePairs = [
-  ['Yêu cầu thất bại.', 'The request failed.'],
-  ['Cấu hình JSON không hợp lệ. Kiểm tra dấu phẩy và dấu nháy.', 'Invalid JSON configuration. Check commas and quotation marks.'],
-  ['Nhập URL trang cần lấy dữ liệu.', 'Enter the URL of the page to collect data from.'],
-  ['Đã đọc request. Kiểm tra phân trang rồi bấm Xem thử.', 'Request imported. Check pagination, then select Preview a request.'],
-  ['Chọn đường dẫn và nhấn Ctrl+C để sao chép.', 'Select the path and press Ctrl+C to copy it.'],
-  ['File nhập vượt 30 MB.', 'The imported file exceeds 30 MB.'],
-  ['Đăng nhập trong cửa sổ vừa mở, sau đó bấm Lưu phiên & quét lại trước khi đóng cửa sổ.', 'Sign in in the window that opened, then select Save session & rescan before closing it.'],
-  ['Đường dẫn JSON phải là chuỗi.', 'The JSON path must be a string.'],
-  ['Đường dẫn JSON chứa khóa không được hỗ trợ.', 'The JSON path contains an unsupported key.'],
-  ['Tên tham số phân trang không được để trống.', 'The pagination parameter name cannot be empty.'],
-  ['URL không hợp lệ. Nhập URL đầy đủ bắt đầu bằng http:// hoặc https://.', 'Invalid URL. Enter a complete URL starting with http:// or https://.'],
-  ['Chỉ hỗ trợ URL HTTP/HTTPS không chứa tài khoản trong URL.', 'Only HTTP/HTTPS URLs without embedded credentials are supported.'],
-  ['Cấu hình phải là một object JSON.', 'The configuration must be a JSON object.'],
-  ['Tool tải dữ liệu hỗ trợ GET và POST.', 'Data collection supports GET and POST.'],
-  ['Headers phải là object JSON.', 'Headers must be a JSON object.'],
-  ['Header không hợp lệ.', 'Invalid header.'],
-  ['Payload chỉ hỗ trợ JSON, form hoặc text.', 'The payload must use JSON, form or text.'],
-  ['Payload JSON không hợp lệ.', 'Invalid JSON payload.'],
-  ['Payload JSON/form phải là object để cập nhật tham số.', 'The JSON/form payload must be an object to update its parameters.'],
-  ['GET không có payload. Đưa tham số vào query URL hoặc dùng POST.', 'GET cannot have a payload. Add parameters to the URL query or use POST.'],
-  ['Kiểu phân trang không được hỗ trợ.', 'Unsupported pagination mode.'],
-  ['Vị trí tham số phải là query hoặc body.', 'The parameter location must be query or body.'],
-  ['Vị trí tham số cụm phải là query hoặc body.', 'The batch parameter location must be query or body.'],
-  ['Nhập tên tham số phân trang.', 'Enter the pagination parameter name.'],
-  ['Phân trang trong payload cần POST và payload kiểu JSON.', 'Pagination in a payload requires POST and a JSON payload.'],
-  ['Phân trang bằng URL tiếp theo cần request GET.', 'Next-URL pagination requires a GET request.'],
-  ['Nhập đường dẫn cursor/URL tiếp theo trong response.', 'Enter the next cursor/URL path in the response.'],
-  ['Kiểu cụm cần nextPath hoặc hasMorePath của cụm để biết khi nào kết thúc.', 'Batch pagination requires nextPath or hasMorePath to determine when to stop.'],
-  ['Cụm dạng chuỗi cần đường dẫn nextPath của cụm.', 'String batch identifiers require a batch nextPath.'],
-  ['Nhập đường dẫn URL file trong mỗi bản ghi.', 'Enter the file URL path in each record.'],
-  ['URL trang tiếp theo khác nguồn ban đầu.', 'The next-page URL belongs to a different origin.'],
-  ['Response báo còn dữ liệu nhưng không có cursor/URL tiếp theo.', 'The response reports more data but has no next cursor/URL.'],
-  ['Cursor không thay đổi. Tool đã dừng để tránh lặp vô hạn.', 'The cursor did not change. Collection stopped to avoid an infinite loop.'],
-  ['Nguồn báo còn dữ liệu nhưng nextOffset không tăng.', 'The source reports more data but nextOffset did not increase.'],
-  ['Response báo còn cụm nhưng không có mã cụm tiếp theo.', 'The response reports more batches but has no next batch identifier.'],
-  ['Mã cụm không thay đổi. Tool đã dừng để tránh lặp vô hạn.', 'The batch identifier did not change. Collection stopped to avoid an infinite loop.'],
-  ['Trang/offset bắt đầu', 'Starting page/offset'],
-  ['Bước tăng', 'Step'],
-  ['Số bản ghi mỗi trang', 'Records per page'],
-  ['Bước tăng cụm', 'Batch step'],
-  ['Giới hạn request mỗi lượt', 'Request limit per run'],
-  ['Giới hạn thao tác trình duyệt mỗi lượt', 'Browser action limit per run'],
-  ['Giới hạn bản ghi mỗi lượt', 'Record limit per run'],
-  ['Độ trễ', 'Delay'],
-  ['Số lần thử lại', 'Retry count'],
-  ['Giới hạn response', 'Response size limit'],
-  ['Giới hạn file', 'File size limit'],
-  ['Nguồn chuyển hướng quá nhiều lần.', 'The source redirected too many times.'],
-  ['Dữ liệu vượt giới hạn kích thước đã cấu hình.', 'The data exceeds the configured size limit.'],
-  ['Không kết nối được nguồn dữ liệu. Kiểm tra URL và kết nối mạng.', 'Cannot connect to the data source. Check the URL and your network connection.'],
-  ['Nguồn phản hồi quá chậm. Có thể tăng timeout và chạy tiếp.', 'The source is responding too slowly. Increase the timeout and resume.'],
-  ['Nguồn không trả về JSON. Hãy dùng chế độ trình duyệt nếu dữ liệu nằm trong HTML hoặc cần phiên đăng nhập.', 'The source did not return JSON. Use browser mode for HTML data or pages requiring a login session.'],
-  ['cURL bị thiếu dấu đóng nháy. Dùng Copy as cURL (bash) trong tab Network.', 'The cURL request has an unclosed quote. Use Copy as cURL (bash) in the Network tab.'],
-  ['Request cần bắt đầu bằng curl.', 'The request must start with curl.'],
-  ['cURL bị thiếu giá trị tham số.', 'The cURL request is missing a parameter value.'],
-  ['Header cURL không hợp lệ.', 'Invalid cURL header.'],
-  ['Chỉ hỗ trợ cookie dạng tên=giá trị.', 'Cookies must use the name=value format.'],
-  ['Không đọc file @ trong cURL. Hãy dán payload trực tiếp.', 'File references with @ are not read from cURL. Paste the payload directly.'],
-  ['cURL chứa nội dung không phải request được hỗ trợ.', 'The cURL input contains unsupported request content.'],
-  ['Payload JSON trong cURL không hợp lệ.', 'Invalid JSON payload in the cURL request.'],
-  ['Nội dung nhập không hợp lệ hoặc vượt 30 MB.', 'The input is invalid or exceeds 30 MB.'],
-  ['Dán cURL hoặc tải file JSON/HAR hợp lệ.', 'Paste cURL or upload a valid JSON/HAR file.'],
-  ['HAR không chứa response JSON GET/POST.', 'The HAR contains no GET/POST JSON responses.'],
-  ['Không tìm thấy request trong HAR.', 'Request not found in the HAR.'],
-  ['Đã nhập payload JSON. Điền URL API và chọn POST trong cấu hình nâng cao.', 'JSON payload imported. Enter the API URL and select POST in the advanced configuration.'],
-  ['Đang thử lại việc tải file.', 'Retrying the file download.'],
-  ['File vượt giới hạn kích thước đã cấu hình.', 'The file exceeds the configured size limit.'],
-  ['Sẵn sàng', 'Ready'],
-  ['Đã khôi phục điểm lưu sau khi máy chủ dừng. Bấm Chạy tiếp để tiếp tục.', 'The checkpoint was restored after the server stopped. Select Resume to continue.'],
-  ['Chưa tải đủ dữ liệu; có thể chạy tiếp', 'Data is incomplete; you can resume'],
-  ['Request phân trang đã lặp lại. Tool dừng để tránh vòng lặp.', 'A pagination request repeated. Collection stopped to avoid a loop.'],
-  ['Đang tải dữ liệu từ API', 'Collecting data from the API'],
-  ['Nguồn trả về cùng một trang 3 lần liên tiếp. Kiểm tra tham số phân trang.', 'The source returned the same page 3 times in a row. Check the pagination parameters.'],
-  ['Tác vụ đang chạy.', 'The run is already in progress.'],
-  ['Tác vụ đã kết thúc. Tạo lượt mới nếu muốn tải lại.', 'The run has completed. Create a new run to collect the data again.'],
-  ['Bắt đầu tải dữ liệu.', 'Data collection started.'],
-  ['Đã đạt giới hạn mỗi lượt; có thể chạy tiếp', 'The run limit was reached; you can resume'],
-  ['Không thấy dữ liệu hoặc nội dung thay đổi sau 3 lần kiểm tra', 'No new data or content changes after 3 checks'],
-  ['Đã tải đủ tổng khai báo hoặc nguồn báo hết dữ liệu', 'The reported total was collected or the source reported no more data'],
-  ['Đã tạm dừng và lưu vị trí', 'Paused and saved the current position'],
-  ['Đã dừng vì lỗi', 'Stopped due to an error'],
-  ['Định dạng tải về không hợp lệ.', 'Invalid download format.'],
-  ['Nguồn dữ liệu trình duyệt không hợp lệ.', 'Invalid browser data source.'],
-  ['Không tìm thấy tác vụ.', 'Run not found.'],
-  ['Không mở được trình duyệt. Cài Chrome/Edge, hoặc chạy npx playwright install chromium.', 'Cannot open a browser. Install Chrome/Edge, or run npx playwright install chromium.'],
-  ['Đang có cửa sổ đăng nhập. Lưu phiên trước khi mở cửa sổ khác.', 'A sign-in window is already open. Save the session before opening another window.'],
-  ['Cửa sổ đăng nhập đã đóng. Mở lại và bấm Lưu phiên trước khi đóng cửa sổ.', 'The sign-in window was closed. Reopen it and save the session before closing the window.'],
-  ['Nội dung trang vượt giới hạn response. Tăng maxResponseBytes trong cấu hình để lấy đầy đủ.', 'Page content exceeds the response limit. Increase maxResponseBytes in the configuration to collect it all.'],
-  ['Đang mở trang', 'Opening page'],
-  ['Đang kiểm tra cách tải tiếp', 'Checking how to load more'],
-  ['Đang chuyển câu để tìm request tải cụm tiếp theo', 'Moving between questions to find the next batch request'],
-  ['Đang nhận diện nguồn dữ liệu', 'Detecting data sources'],
-  ['Đang xác nhận request có thể tải lại', 'Verifying that the request can be replayed'],
-  ['Trang đang chặn truy cập tự động hoặc yêu cầu xác minh. Tool không vượt CAPTCHA.', 'The page blocks automated access or requires verification. The tool cannot bypass CAPTCHA.'],
-  ['Trang yêu cầu đăng nhập. Mở trình duyệt đăng nhập, lưu phiên rồi quét lại.', 'The page requires sign-in. Open the browser, sign in, save the session and rescan.'],
-  ['Đã tìm thấy dữ liệu JSON, nhận diện phân trang và tải thử thành công.', 'JSON data found, pagination detected and a test request succeeded.'],
-  ['Đã thấy dữ liệu JSON. Có thể theo dõi trình duyệt để thu từng cụm tải thêm.', 'JSON data found. Monitor the browser to collect each additional batch.'],
-  ['Đã tìm thấy các khối nội dung. Có thể lấy nội dung và theo nút/cuộn tải thêm.', 'Content blocks found. Collect content and use buttons or scrolling to load more.'],
-  ['Đọc được nội dung trang. Chưa xác định được danh sách bản ghi; sẽ lưu văn bản, ảnh và liên kết theo từng trang.', 'Page content is available. No record list was detected; text, images and links will be saved per page.'],
-  ['Chưa tìm thấy dữ liệu có thể thu. Có thể thử lại sau khi trang tải đầy đủ.', 'No collectable data found yet. Try again after the page has fully loaded.'],
-  ['Đang mở trình duyệt để thu dữ liệu.', 'Opening a browser to collect data.'],
-  ['Trang yêu cầu xác minh hoặc đang chặn tự động.', 'The page requires verification or blocks automation.'],
-  ['Phiên đăng nhập chưa có hoặc đã hết hạn. Mở trình duyệt đăng nhập rồi quét lại.', 'The login session is missing or expired. Open the browser, sign in and rescan.'],
-  ['HTML trang vượt giới hạn response. Tăng maxResponseBytes hoặc tắt saveRaw trong cấu hình.', 'Page HTML exceeds the response limit. Increase maxResponseBytes or disable saveRaw in the configuration.'],
-  ['Đang khôi phục vị trí, lọc bản ghi đã lưu', 'Restoring the position and filtering saved records'],
-  ['Chuyển sang trang tiếp theo.', 'Moving to the next page.'],
-  ['Đang chuyển câu/thẻ để kích hoạt tải cụm tiếp theo.', 'Moving to the next question/card to load another batch.'],
-  ['Tải cụm tiếp theo qua nút trên trang.', 'Loading the next batch using the page button.'],
-  ['Cuộn tới cuối vùng nội dung để tải cụm tiếp theo.', 'Scrolling to the end of the content to load the next batch.'],
-  ['Request cần Content-Type application/json.', 'The request requires Content-Type application/json.'],
-  ['Nội dung gửi lên vượt 32 MB.', 'The submitted content exceeds 32 MB.'],
-  ['Nội dung JSON gửi lên không hợp lệ.', 'Invalid JSON in the submitted content.'],
-  ['Host không được phép truy cập tool cục bộ.', 'This host is not allowed to access the local tool.'],
-  ['Yêu cầu từ trang khác bị từ chối.', 'Requests from other sites are rejected.'],
-  ['Không tìm thấy lượt quét. Quét lại URL.', 'Scan not found. Rescan the URL.'],
-  ['Không tìm thấy lượt quét.', 'Scan not found.'],
-  ['Lượt quét đã được hủy.', 'The scan was cancelled.'],
-  ['Một URL đang được quét. Đợi lượt quét kết thúc.', 'A URL is being scanned. Wait for that scan to finish.'],
-  ['Đang chuẩn bị', 'Preparing'],
-  ['Lượt quét đã hết thời gian. Trang có thể tải quá chậm; hãy thử lại.', 'The scan timed out. The page may be loading too slowly; try again.'],
-  ['Đã nhận diện', 'Analysis complete'],
-  ['Đã có 2 tác vụ đang chạy. Tạm dừng một tác vụ hoặc chờ hoàn tất.', 'Two runs are already in progress. Pause one or wait for it to finish.'],
-  ['Quét URL thành công trước khi bắt đầu.', 'Successfully scan the URL before starting.'],
-  ['Nguồn này chưa nhận diện đủ tham số API. Chọn cách tải qua trình duyệt.', 'The API parameters could not be fully detected. Choose browser collection.'],
-  ['Không tìm thấy địa chỉ.', 'Address not found.'],
-];
-
-const dynamicPairs = [
-  ['Đường dẫn JSON không hợp lệ: {path}. Dùng dạng data.items hoặc data[0].items.', 'Invalid JSON path: {path}. Use data.items or data[0].items.'],
-  ['Không thể ghi tham số bên trong {path}.', 'Cannot write a parameter inside {path}.'],
-  ['{label} phải là số nguyên từ {min} đến {max}.', '{label} must be an integer from {min} to {max}.'],
-  ['{field} cần là true/false trong response. Kiểm tra lại đường dẫn kết thúc phân trang.', '{field} must be true/false in the response. Check the pagination end path.'],
-  ['Không tìm thấy {field} trong response. Không thể xác định trang tiếp theo.', '{field} was not found in the response. Cannot determine the next page.'],
-  ['{field} phải là chuỗi, số hoặc null.', '{field} must be a string, number or null.'],
-  ['{field} phải là tổng số bản ghi không âm.', '{field} must be a non-negative total record count.'],
-  ['HTTP {status}: nguồn yêu cầu đăng nhập hoặc từ chối request. Quét lại sau khi đăng nhập.', 'HTTP {status}: the source requires sign-in or rejected the request. Sign in and rescan.'],
-  ['Nguồn trả về HTTP {status}.', 'The source returned HTTP {status}.'],
-  ['Chưa hỗ trợ tùy chọn cURL {option}. Dùng request từ Copy as cURL (bash).', 'Unsupported cURL option {option}. Use a request from Copy as cURL (bash).'],
-  ['Bản ghi không có khóa {key}. Kiểm tra khóa loại trùng hoặc để trống để so sánh toàn bộ nội dung.', 'A record is missing the key {key}. Check the deduplication key or leave it empty to compare full content.'],
-  ['Đã tải file {name}.', 'Downloaded file {name}.'],
-  ['Đã kiểm tra dữ liệu cũ: {error}', 'Checked saved data: {error}'],
-  ['Đã lưu {count} bản ghi. Lượt tải bắt đầu ở offset {offset}; bấm Chạy tiếp để tải bù phần đầu bị bỏ sót.', 'Saved {count} records. The run started at offset {offset}; select Resume to collect the missing beginning.'],
-  ['Đã lưu {count} bản ghi. Nguồn vẫn còn dữ liệu nhưng chưa tải tiếp được. Có thể chạy tiếp hoặc đăng nhập và quét lại URL.', 'Saved {count} records. The source still has data but it could not be loaded. Resume, or sign in and rescan the URL.'],
-  ['Đã lưu cụm {batch}: {count} bản ghi mới, {duplicates} bản ghi trùng.', 'Saved batch {batch}: {count} new records, {duplicates} duplicates.'],
-  ['Thử lại request lần {attempt} sau {delay} ms.', 'Retrying request, attempt {attempt}, after {delay} ms.'],
-  ['Không tìm thấy mảng bản ghi tại {path}. Dùng Xem thử để xác định đường dẫn.', 'No record array found at {path}. Use Preview a request to find the path.'],
-  ['Đang tải bù phần đầu bị bỏ sót: offset 0 đến trước {offset}.', 'Collecting the missing beginning: offset 0 up to {offset}.'],
-  ['Không lưu được checkpoint: {error}', 'Cannot save the checkpoint: {error}'],
-  ['Một request trên trang trả về HTTP {status}.', 'A request on the page returned HTTP {status}.'],
-  ['Nguồn dữ liệu trả về HTTP {status}. Kiểm tra phiên đăng nhập hoặc quét lại trang trước khi chạy tiếp.', 'The data source returned HTTP {status}. Check your login session or rescan the page before resuming.'],
-  ['Đã lưu {count} bản ghi; đang chuyển câu để tải cụm tiếp theo', 'Saved {count} records; moving between questions to load the next batch'],
-  ['Đã lưu {count} bản ghi; đang theo dõi dữ liệu mới', 'Saved {count} records; monitoring for new data'],
-];
-
-for (const hasMore of [false, true]) {
-  for (const hasUrl of [false, true]) {
-    dynamicPairs.push([
-      'Đã đọc file dữ liệu đã lưu: {count} bản ghi.' + (hasMore ? ' Nguồn còn cụm tiếp theo.' : '') + (hasUrl ? ' Đang nhận diện lại URL để tìm request tải các cụm còn lại.' : ' Nhập URL trang nguồn rồi bấm Nhận diện trang để tìm request tải tiếp.'),
-      'Read saved data file: {count} records.' + (hasMore ? ' The source has more batches.' : '') + (hasUrl ? ' Rescanning the URL to find requests for the remaining batches.' : ' Enter the source page URL and select Analyze page to find the next request.'),
-    ]);
-  }
-}
-const messageMap = new Map(messagePairs);
-const messageTemplates = dynamicPairs.map(([source, target]) => {
-  const keys = [];
-  const pattern = source.split(/\{(\w+)\}/).map((part, index) => {
-    if (index % 2) { keys.push(part); return '(.+?)'; }
-    return part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  }).join('');
-  return { pattern: new RegExp('^' + pattern + '$', 's'), keys, target };
-});
-export function translateMessage(message, language) {
-  if (!message || normalizeLanguage(language) === 'vi') return message || '';
-  if (messageMap.has(message)) return messageMap.get(message);
-  for (const { pattern, keys, target } of messageTemplates) {
-    const match = message.match(pattern);
-    if (!match) continue;
-    const values = Object.fromEntries(keys.map((key, index) => [key, key === 'error' ? translateMessage(match[index + 1], 'en') : key === 'label' ? messageMap.get(match[index + 1]) || match[index + 1] : match[index + 1]]));
-    return interpolate(target, values);
-  }
-  return message;
-}
+// Kept as the public API for existing callers and historical messages.
+export const translateMessage = (message, language) => formatMessage(message, normalizeLanguage(language));

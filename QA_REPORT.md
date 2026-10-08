@@ -1,5 +1,38 @@
 # Kết quả kiểm tra Cào Cào
 
+## Tối ưu lõi 1.2.0 (08/10/2026, Asia/Bangkok)
+
+Issue: [#3](https://github.com/vankhoa-gubit/CaoCao-Tool/issues/3). Nhánh: `codex/issue-3-core-optimizations`, dựa trên bản Việt/Anh `c4e08c9`.
+
+**PASS: 78/78 ca** qua `npm test`: 63 ca trước đó và 15 ca tối ưu mới. Lượt cuối hoàn tất trong **101,3 giây**, không có FAIL, CANCELLED hoặc SKIPPED. Log: `.qa/optimization-full-test-final.log`. `git diff --check` không có lỗi whitespace.
+
+| Nhóm | Kết quả và bằng chứng |
+| --- | --- |
+| Điều phối | 8 yêu cầu tạo đồng thời chỉ nhận 2; chạy tiếp/direct start cùng dùng admission. HTTP tạo và chạy tiếp trả 409 + `{code, params}` khi hết chỗ. Pause, lỗi cấu hình, lỗi request, lỗi ghi checkpoint và hoàn tất đều trả chỗ |
+| Đóng server | Đợi tác vụ tạo đang chờ, từ chối bắt đầu mới; không rò slot hoặc pending promise |
+| Lịch sử | 37 tác vụ qua 3 trang 15/15/7; tìm tên/mã, lọc trạng thái, trang vượt cuối, query sai. API phân trang không chứa logs/samples/outputPath; chi tiết và endpoint cũ vẫn hoạt động |
+| UI lịch sử | Truy cập lượt cũ ngoài 15 đầu tiên, chọn chi tiết, lọc kết hợp và thông báo không có kết quả; giữ dữ liệu/focus/ngôn ngữ. Response tìm kiếm cũ bị trì hoãn không ghi đè bộ lọc mới |
+| Cập nhật UI | Clock Playwright xác nhận nhịp 15 giây khi rảnh, không tải lại chi tiết không đổi; sự kiện visibility mô phỏng xác nhận 60 giây khi ẩn và lấy snapshot khi hiện lại. Luồng tải/quét/chạy tiếp vẫn được kiểm tra với server cục bộ thật |
+| Khôi phục | Metadata hợp lệ không giữ khóa loại trùng; chạy tiếp dựng khóa, xuất đủ ID và giải phóng khóa. Checkpoint bị chỉnh sửa, JSON hỏng, bị thiếu, legacy, cũ hoặc cấu hình đổi đều đọc lại file trang. Mất file giữa chuỗi báo lỗi, từ chối resume, không ghi đè file còn lại |
+| Việt/Anh | Thông báo mới phát mã explicit; bounds dùng descriptor lồng cho label. Dịch không phụ thuộc câu tiếng Việt; literal parameters và bản ghi nguồn giữ nguyên. Nhật ký/checkpoint cũ vẫn dịch được |
+| Responsive | Cả Việt/Anh tại 320, 375, 414, 768, 1440 px không tràn ngang hoặc vượt màn hình; không có pageerror. Đã xem ảnh English 320 px và 1440 px trong `.qa/history-ui-EUVm4I/` |
+
+### Benchmark khởi động
+
+Chạy `npm run benchmark:startup` trên Node.js **v24.21.0**. Mỗi dataset gồm 20 tác vụ; 10.000 bản ghi có 40 file trang, 100.000 bản ghi có 400 file trang. So sánh đúng `JobManager.init/Job.restore` cũ lấy từ Git tại `c4e08c9` với mã mới, trên cùng dữ liệu. Mỗi chế độ đo 3 lần trong tiến trình Node riêng với `--expose-gc`, lấy trung vị. Các lượt đo cuối chạy sau khi suite đã kết thúc.
+
+| Bản ghi | Cũ: đọc trang và dựng khóa | Mới: metadata hợp lệ | Mới: đọc lại trang để khôi phục |
+| --- | --- | --- | --- |
+| 10.000 | 63,32 ms; heap giữ lại 1,07 MB | 30,07 ms; heap giữ lại 0,15 MB | 80,22 ms; heap giữ lại 0,22 MB |
+| 100.000 | 447,58 ms; heap giữ lại 10,99 MB | 31,87 ms; heap giữ lại 0,14 MB | 488,56 ms; heap giữ lại 0,25 MB |
+
+- Với 100.000 bản ghi, khởi động qua metadata nhanh khoảng **14 lần** trong fixture này. RSS trung vị: **172,46 MB → 117,43 MB**. Heap giữ lại là phần tăng sau khi dựng lịch sử, không phải toàn bộ RAM của chương trình.
+- Danh sách JSON của 20 tác vụ là **23.304 byte**; kết quả phân trang 15 tác vụ là **5.806 byte**, giảm khoảng **75%**. Chi tiết một tác vụ là **1.166 byte**, chỉ tải khi chọn hoặc metadata đổi. Đây là số byte serialization trong benchmark, chưa gồm headers HTTP và trường `activity`.
+- Xuất JSON được kiểm tra đủ **10.000/100.000 ID**, không thiếu/trùng. Hash của toàn bộ **40/400 file trang** khớp trước/sau. Dữ liệu trong `data/` không dùng để benchmark hoặc kiểm thử.
+- Bằng chứng: `.qa/startup-benchmark-fPfysk/result.json`, `.qa/optimization-benchmark-isolated.log`. Script có trong `scripts/benchmark-startup.mjs`.
+
+Cache file của hệ điều hành không được xóa; các số đo không chứng minh thời gian đọc đĩa sau khi máy vừa bật. Checksum xác minh metadata checkpoint và dấu cấu hình; nhánh khởi động nhanh không tính lại hash nội dung mọi file trang. Checkpoint cần khôi phục vẫn phải đọc dữ liệu cũ một lần; khóa loại trùng được đọc/dựng trước khi chạy tiếp. Lượt này kiểm tra nguồn cục bộ và dữ liệu QA, chưa chạy lại website ngoài dự án.
+
 ## Ngôn ngữ giao diện (08/10/2026, Asia/Bangkok)
 
 Issue: [#2](https://github.com/vankhoa-gubit/CaoCao-Tool/issues/2). Nhánh: `codex/issue-2-english-language`.

@@ -1,3 +1,4 @@
+import { msg, formatMessage, MessageError, fields } from './messages.mjs';
 import { chromium } from 'playwright';
 import { mkdir, access, rename } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -17,7 +18,7 @@ export class BrowserSessions {
       signal?.throwIfAborted();
       try { browser = await chromium.launch({ channel, headless, timeout: 12000 }); break; } catch { /* Try the next installed browser. */ }
     }
-    if (!browser) throw new Error('Không mở được trình duyệt. Cài Chrome/Edge, hoặc chạy npx playwright install chromium.');
+    if (!browser) throw new MessageError('browser.unavailable');
     let storageState;
     try { await access(this.statePath(url)); storageState = this.statePath(url); } catch { /* First visit. */ }
     const context = await browser.newContext({ storageState, viewport: { width: 1365, height: 900 }, locale: 'vi-VN', acceptDownloads: false, serviceWorkers: 'block' });
@@ -41,7 +42,7 @@ export class BrowserSessions {
   }
   async login(url) {
     httpUrl(url);
-    if (this.logins.size) throw new Error('Đang có cửa sổ đăng nhập. Lưu phiên trước khi mở cửa sổ khác.');
+    if (this.logins.size) throw new MessageError('login.alreadyOpen');
     const session = await this.open(url, { headless: false });
     const id = randomUUID();
     this.logins.set(id, session);
@@ -51,7 +52,7 @@ export class BrowserSessions {
   }
   async saveLogin(id) {
     const session = this.logins.get(id);
-    if (!session) throw new Error('Cửa sổ đăng nhập đã đóng. Mở lại và bấm Lưu phiên trước khi đóng cửa sổ.');
+    if (!session) throw new MessageError('login.closed');
     await session.close(); this.logins.delete(id);
   }
   async closeAll() { await Promise.allSettled([...this.logins.values()].map(session => session.close())); this.logins.clear(); }
@@ -96,7 +97,7 @@ export function monitorPage(page, maxBytes = 20 * 1024 * 1024) {
 }
 
 export async function readDom(page, maxBytes = 20 * 1024 * 1024) {
-  return page.evaluate(limit => {
+  const result = await page.evaluate(limit => {
     const visible = element => { const rect = element.getBoundingClientRect(); return rect.width > 0 && rect.height > 0 && getComputedStyle(element).visibility !== 'hidden'; };
     const region = document.querySelector('main, [role="main"]') || document.body;
     const clean = value => (value || '').replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
@@ -119,9 +120,11 @@ export async function readDom(page, maxBytes = 20 * 1024 * 1024) {
     const bodyText = clean(document.body?.innerText).slice(0, 12000);
     const blocked = /checking your browser|verify (you are|that you are) human|just a moment|security verification|enable javascript and cookies|xác minh.*(con người|robot)/i.test(document.title + ' ' + bodyText) || Boolean(document.querySelector('iframe[src*="captcha"], .g-recaptcha, #challenge-running'));
     const needsLogin = Boolean(document.querySelector('input[type="password"]')) && /login|sign in|đăng nhập/i.test(document.title + ' ' + bodyText) && !structured;
-    if (new TextEncoder().encode(JSON.stringify(records)).length > limit) throw new Error('Nội dung trang vượt giới hạn response. Tăng maxResponseBytes trong cấu hình để lấy đầy đủ.');
+    if (new TextEncoder().encode(JSON.stringify(records)).length > limit) return { errorCode: 'browser.contentLimit' };
     return { title: document.title, url: location.href, records, selector, structured, blocked, needsLogin };
   }, maxBytes);
+  if (result.errorCode) throw new MessageError(result.errorCode);
+  return result;
 }
 
 export async function findNext(page) {
@@ -182,7 +185,7 @@ export function browserConfig(url, candidate, name, limits) {
 
 export async function scanWebsite(url, sessions, update = () => {}, signal, options = {}) {
   httpUrl(url);
-  update({ stage: 'Đang mở trang', requests: 0, records: 0 });
+  update({ ...fields(msg('scan.opening'), 'stage'), requests: 0, records: 0 });
   const session = await sessions.open(url, { signal });
   const monitor = monitorPage(session.page);
   try {
@@ -193,19 +196,19 @@ export async function scanWebsite(url, sessions, update = () => {}, signal, opti
     if (!dom.blocked && !dom.needsLogin && navigation?.status() < 400) {
       let rounds = options.rounds ?? 2;
       for (let round = 0; round < rounds; round++) {
-        update({ stage: 'Đang kiểm tra cách tải tiếp', requests: monitor.requests, records: dom.records.length });
+        update({ ...fields(msg('scan.next'), 'stage'), requests: monitor.requests, records: dom.records.length });
         const action = await advancePage(session.page); actions.push(action.action);
         await monitor.settle(signal, action.action === 'nextItem' ? 150 : options.waitMs || 1400);
         dom = await readDom(session.page);
         const main = analyzeCaptures(monitor.captures, dom)[0];
         if (action.action === 'nextItem' && main?.pagination === 'none' && (main.source.hasMore === true || main.total > main.observedRecords)) {
           rounds = Math.min(options.maxActions || 60, Math.max(rounds, (main.source.pageSize || 30) + 3));
-          update({ stage: 'Đang chuyển câu để tìm request tải cụm tiếp theo', requests: monitor.requests, records: main.observedRecords });
+          update({ ...fields(msg('scan.nextQuestion'), 'stage'), requests: monitor.requests, records: main.observedRecords });
         }
         if (round >= (options.rounds ?? 2) - 1 && main?.apiConfig && main.pagination !== 'none') break;
       }
     }
-    update({ stage: 'Đang nhận diện nguồn dữ liệu', requests: monitor.requests, records: dom.records.length });
+    update({ ...fields(msg('scan.detecting'), 'stage'), requests: monitor.requests, records: dom.records.length });
     const candidates = analyzeCaptures(monitor.captures, dom);
     let blocked = dom.blocked, needsLogin = dom.needsLogin;
     if (navigation?.status() === 401) needsLogin = true;
@@ -213,7 +216,7 @@ export async function scanWebsite(url, sessions, update = () => {}, signal, opti
     const main = candidates[0];
     let apiVerified = false;
     if (main?.apiConfig && !blocked && !needsLogin && (main.method === 'GET' || main.pagination !== 'none')) {
-      update({ stage: 'Đang xác nhận request có thể tải lại', requests: monitor.requests, records: main.observedRecords });
+      update({ ...fields(msg('scan.verifying'), 'stage'), requests: monitor.requests, records: main.observedRecords });
       try {
         const probe = await fetchJson(buildRequest(main.apiConfig, initialState(main.apiConfig)), { ...main.apiConfig.limits, timeoutMs: 8000, retries: 0 }, signal);
         apiVerified = Array.isArray(getAt(probe, main.itemsPath));
@@ -224,23 +227,20 @@ export async function scanWebsite(url, sessions, update = () => {}, signal, opti
     const useApi = apiVerified && (paginated || !hasInteractive && !actions.includes('scroll'));
     const capability = blocked ? 'blocked' : needsLogin ? 'login' : main ? (apiVerified && paginated ? 'high' : 'medium') : dom.structured ? 'medium' : dom.records.length ? 'content' : 'unknown';
     const messages = {
-      blocked: 'Trang đang chặn truy cập tự động hoặc yêu cầu xác minh. Tool không vượt CAPTCHA.',
-      login: 'Trang yêu cầu đăng nhập. Mở trình duyệt đăng nhập, lưu phiên rồi quét lại.',
-      high: 'Đã tìm thấy dữ liệu JSON, nhận diện phân trang và tải thử thành công.',
-      medium: main ? 'Đã thấy dữ liệu JSON. Có thể theo dõi trình duyệt để thu từng cụm tải thêm.' : 'Đã tìm thấy các khối nội dung. Có thể lấy nội dung và theo nút/cuộn tải thêm.',
-      content: 'Đọc được nội dung trang. Chưa xác định được danh sách bản ghi; sẽ lưu văn bản, ảnh và liên kết theo từng trang.',
-      unknown: 'Chưa tìm thấy dữ liệu có thể thu. Có thể thử lại sau khi trang tải đầy đủ.',
+      blocked: 'scan.blocked', login: 'scan.login', high: 'scan.high',
+      medium: main ? 'scan.json' : 'scan.blocks', content: 'scan.content', unknown: 'scan.unknown',
     };
     const recommendation = useApi ? { ...main.apiConfig, kind: 'api' } : browserConfig(url, main, dom.title);
     return {
-      url, finalUrl: dom.url, title: dom.title, capability, message: messages[capability],
+      url, finalUrl: dom.url, title: dom.title, capability, ...fields(msg(messages[capability])),
       requests: monitor.requests, responses: monitor.captures.length, actions: [...new Set(actions)],
       candidates, apiVerified, recommendedMode: useApi ? 'api' : 'browser', recommendation,
       browserConfig: browserConfig(url, main, dom.title),
       sample: main?.sample || dom.records.slice(0, 3).map(({_key, ...record}) => record),
       observedRecords: main?.observedRecords || dom.records.length,
       total: main?.total ?? null,
-      warnings: [...new Set(monitor.errors)].map(status => `Một request trên trang trả về HTTP ${status}.`),
+      warnings: [...new Set(monitor.errors)].map(status => formatMessage(msg('scan.http', { status }))),
+      warningMessages: [...new Set(monitor.errors)].map(status => msg('scan.http', { status })),
     };
   } finally { monitor.stop(); await session.close(); }
 }
@@ -254,7 +254,7 @@ function sourceMatches(capture, source, sessionId) {
 
 export async function runBrowser(job, sessions, signal) {
   const config = job.config;
-  job.log('Đang mở trình duyệt để thu dữ liệu.');
+  job.log(msg('browser.opening'));
   const session = await sessions.open(config.request.url, { signal });
   const monitor = monitorPage(session.page, config.limits.maxResponseBytes);
   const replayUntil = job.state?.round || 0;
@@ -269,8 +269,8 @@ export async function runBrowser(job, sessions, signal) {
       signal.throwIfAborted();
       await monitor.settle(signal, Math.max(config.limits.delayMs, previousAction?.action === 'nextItem' ? 100 : 1200), config.limits.timeoutMs);
       const dom = await readDom(session.page, config.limits.maxResponseBytes);
-      if (dom.blocked) throw new Error('Trang yêu cầu xác minh hoặc đang chặn tự động.');
-      if (dom.needsLogin) throw new Error('Phiên đăng nhập chưa có hoặc đã hết hạn. Mở trình duyệt đăng nhập rồi quét lại.');
+      if (dom.blocked) throw new MessageError('browser.blocked');
+      if (dom.needsLogin) throw new MessageError('browser.login');
       let items = [], raw;
       const recent = monitor.captures.splice(0);
       history.push(...recent);
@@ -288,7 +288,7 @@ export async function runBrowser(job, sessions, signal) {
       }
       const failures = monitor.failures.splice(0);
       const relevantFailure = failures.find(failure => failure.document || sourceMatches(failure, source, sessionId) || sourceMatches(failure, source?.seed));
-      if (relevantFailure) throw new Error(`Nguồn dữ liệu trả về HTTP ${relevantFailure.status}. Kiểm tra phiên đăng nhập hoặc quét lại trang trước khi chạy tiếp.`);
+      if (relevantFailure) throw new MessageError('browser.http', { status: relevantFailure.status });
       let hasMore;
       if (source) {
         const available = [...recent, ...history.filter(capture => sourceMatches(capture, source.seed) && !consumed.has(capture) && !recent.includes(capture))];
@@ -304,7 +304,7 @@ export async function runBrowser(job, sessions, signal) {
       } else {
         items = dom.records;
         const html = await session.page.content();
-        if (config.saveRaw && Buffer.byteLength(html) > config.limits.maxResponseBytes) throw new Error('HTML trang vượt giới hạn response. Tăng maxResponseBytes hoặc tắt saveRaw trong cấu hình.');
+        if (config.saveRaw && Buffer.byteLength(html) > config.limits.maxResponseBytes) throw new MessageError('browser.htmlLimit');
         raw = { html, url: dom.url };
       }
       if (config.download.enabled) {
@@ -323,7 +323,7 @@ export async function runBrowser(job, sessions, signal) {
       views.add(view); previousView = view;
       const missing = Number.isSafeInteger(job.progress.total) && job.progress.items < job.progress.total;
       const counts = job.progress.total != null ? `${job.progress.items}/${job.progress.total}` : String(job.progress.items);
-      job.progress.stage = round < replayUntil ? 'Đang khôi phục vị trí, lọc bản ghi đã lưu' : `Đã lưu ${counts} bản ghi` + (previousAction?.action === 'nextItem' ? '; đang chuyển câu để tải cụm tiếp theo' : '; đang theo dõi dữ liệu mới');
+      job.setStage(msg(round < replayUntil ? 'browser.replaying' : previousAction?.action === 'nextItem' ? 'browser.moving' : 'browser.monitoring', { count: counts }));
       job.state.idleCount = idle;
       if (hasMore !== undefined) job.state.hasMore = hasMore;
       await job.persist();
@@ -333,7 +333,7 @@ export async function runBrowser(job, sessions, signal) {
       if (runBatches >= config.limits.maxRequests || round + 1 >= maxActions + replayUntil || config.limits.maxItems && runItems >= config.limits.maxItems) return 'limited';
       const action = await advancePage(session.page);
       previousAction = action;
-      if (action.action !== 'nextItem' || round % 10 === 0) job.log(action.action === 'page' ? 'Chuyển sang trang tiếp theo.' : action.action === 'nextItem' ? 'Đang chuyển câu/thẻ để kích hoạt tải cụm tiếp theo.' : action.action === 'loadMore' ? 'Tải cụm tiếp theo qua nút trên trang.' : 'Cuộn tới cuối vùng nội dung để tải cụm tiếp theo.');
+      if (action.action !== 'nextItem' || round % 10 === 0) job.log(msg(action.action === 'page' ? 'browser.nextPage' : action.action === 'nextItem' ? 'browser.nextItem' : action.action === 'loadMore' ? 'browser.loadMore' : 'browser.scroll'));
     }
     return 'limited';
   } finally { monitor.stop(); await session.close(); }

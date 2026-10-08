@@ -193,7 +193,7 @@ test('Unavailable localStorage and a disconnected server do not break the switch
   page.on('pageerror', error => browserErrors.push(error.message));
   try {
     await context.addInitScript(() => { Object.defineProperty(window, 'localStorage', { get() { throw new DOMException('Storage disabled', 'SecurityError'); } }); });
-    await page.route('**/api/jobs', route => route.abort());
+    await page.route('**/api/jobs**', route => route.abort());
     await page.goto(origin);
     await until(() => page.locator('#connection-label').innerText(), value => value === 'Mất kết nối máy chủ');
     await page.locator('[data-language="en"]').click();
@@ -211,7 +211,8 @@ test('Locale formats large counters while preserving custom names and source tex
   try {
     const response = await fetch(origin + '/api/jobs'), data = await response.json();
     const job = { ...data.jobs[0], name: 'Tên tác vụ của người dùng', progress: { ...data.jobs[0].progress, items: 1234, total: 5678 }, samples: [{ text: 'Nội dung nguồn tiếng Việt' }] };
-    await page.route('**/api/jobs', route => route.fulfill({ json: { jobs: [job] } }));
+    await page.route('**/api/jobs?**', route => route.fulfill({ json: { jobs: [job], pagination: { page: 1, pages: 1, total: 1, limit: 15 }, activity: { running: 0 } } }));
+    await page.route('**/api/jobs/' + job.id, route => route.fulfill({ json: job }));
     await page.goto(origin);
     await until(() => page.locator('#job-items').innerText(), value => value === '1.234 / 5.678');
     await page.locator('[data-language="en"]').click();

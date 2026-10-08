@@ -66,8 +66,14 @@
 
     <aside class="activity" aria-labelledby="activity-title">
       <div class="section-head"><h2 id="activity-title" data-i18n="activity.title">Lượt tải của bạn</h2><button id="refresh-jobs" type="button" class="text-button" data-i18n="activity.refresh">Làm mới</button></div>
+      <div class="history-filters">
+        <div><label for="history-search" data-i18n="history.search">Tìm lượt tải</label><input id="history-search" type="search" maxlength="200" placeholder="Tên hoặc mã tác vụ" data-i18n-placeholder="history.placeholder"></div>
+        <div><label for="history-status" data-i18n="history.status">Trạng thái</label><select id="history-status"><option value="" data-i18n="history.all">Tất cả</option><option value="running" data-i18n="status.running">Đang tải</option><option value="paused" data-i18n="status.paused">Tạm dừng</option><option value="limited" data-i18n="status.limited">Đạt giới hạn</option><option value="incomplete" data-i18n="status.incomplete">Chưa tải đủ</option><option value="completed" data-i18n="status.completed">Đã kết thúc</option><option value="failed" data-i18n="status.failed">Có lỗi</option></select></div>
+      </div>
+      <p id="no-matches" class="hint" data-i18n="history.noMatches" hidden>Không có lượt tải phù hợp.</p>
       <div id="empty-jobs" class="empty-state"><svg viewBox="0 0 80 80" aria-hidden="true"><path d="M17 20h46v40H17zM25 12h30M30 31l10 10 10-10M40 25v16M27 51h26"/></svg><h3 data-i18n="activity.emptyTitle">Chưa có lượt tải</h3><p data-i18n="activity.emptyDescription">Nhận diện một trang để xem dữ liệu có thể lấy và bắt đầu lưu về máy.</p></div>
       <div id="job-list" class="job-list"></div>
+      <nav class="history-pagination" aria-label="Phân trang lượt tải" data-i18n-aria-label="history.pagination"><button id="history-prev" class="text-button" type="button" data-i18n="history.previous" disabled>Trước</button><span id="history-page" class="hint" aria-live="polite"></span><button id="history-next" class="text-button" type="button" data-i18n="history.next" disabled>Sau</button></nav>
       <section id="job-detail" aria-live="polite" hidden>
         <div class="job-heading"><h3 id="job-name"></h3><span id="job-status" class="badge"></span></div>
         <p id="job-stage"></p><progress id="job-progress" aria-label="Tiến độ lấy dữ liệu" data-i18n-aria-label="job.progress"></progress>

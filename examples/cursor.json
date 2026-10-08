@@ -1,0 +1,11 @@
+{
+  "name": "Mẫu: API POST có cursor",
+  "request": {
+    "url": "https://example.com/api/search", "method": "POST",
+    "headers": { "content-type": "application/json" }, "bodyType": "json",
+    "body": { "filters": { "category": "research" }, "variables": { "first": 20 } }
+  },
+  "extract": { "itemsPath": "data.items", "uniqueKey": "id" },
+  "pagination": { "mode": "cursor", "location": "body", "param": "variables.after", "start": null, "nextPath": "data.pageInfo.endCursor", "hasMorePath": "data.pageInfo.hasNextPage" },
+  "limits": { "maxRequests": 200, "delayMs": 500 }
+}

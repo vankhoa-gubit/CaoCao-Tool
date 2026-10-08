@@ -1,0 +1,5 @@
+data/
+.qa/
+*.log
+node_modules/
+.codegraph/

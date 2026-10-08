@@ -1,0 +1,12 @@
+{
+  "name": "Ví dụ: trang bên trong từng cụm",
+  "request": { "url": "http://127.0.0.1:4317/demo/batches", "method": "GET", "headers": {}, "body": null },
+  "extract": { "itemsPath": "data.items", "uniqueKey": "id" },
+  "pagination": {
+    "mode": "batch", "location": "query", "param": "page", "start": 1, "step": 1,
+    "hasMorePath": "meta.hasMorePages",
+    "batch": { "location": "query", "param": "batch", "start": "alpha", "nextPath": "meta.nextBatch", "hasMorePath": "meta.hasMoreBatches" }
+  },
+  "limits": { "maxRequests": 200, "delayMs": 300 },
+  "download": { "enabled": false, "paths": ["fileUrl"] }
+}

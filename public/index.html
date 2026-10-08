@@ -3,76 +3,88 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Cào Cào · Tải dữ liệu về máy</title>
+  <title data-i18n="app.title">Cào Cào · Tải dữ liệu về máy</title>
   <link rel="stylesheet" href="/style.css">
   <script type="module" src="/app.js"></script>
 </head>
 <body>
   <header class="topbar">
-    <a class="brand" href="/" aria-label="Cào Cào, trang chính">
+    <a class="brand" href="/" aria-label="Cào Cào, trang chính" data-i18n-aria-label="brand.home">
       <svg viewBox="0 0 44 44" aria-hidden="true"><path d="M9 29 18 18l12 8M18 18l-6-8M18 18l15-4 4 5M30 26l-3 10M18 24l-7 12M29 14l1-7M33 15l6-5"/><circle cx="32" cy="19" r="2"/></svg>
       <span>Cào Cào</span>
     </a>
-    <span class="connection"><span id="connection-dot" class="dot"></span><span id="connection-label">Đang kết nối</span></span>
+    <div class="topbar-tools">
+      <span class="connection"><span id="connection-dot" class="dot"></span><span id="connection-label" data-i18n="connection.connecting">Đang kết nối</span></span>
+      <div class="language-switch" role="group" aria-label="Chọn ngôn ngữ" data-i18n-aria-label="language.label">
+        <button type="button" data-language="vi" lang="vi" aria-pressed="true">Tiếng Việt</button>
+        <button type="button" data-language="en" lang="en" aria-pressed="false">English</button>
+      </div>
+    </div>
   </header>
 
   <main class="workspace">
     <section class="setup" aria-labelledby="page-title">
-      <div class="intro"><h1 id="page-title">Dữ liệu trên web.<br>Mang về máy bạn.</h1><p>Nhập địa chỉ trang. Tool sẽ tìm nguồn dữ liệu và kiểm tra cách tải tiếp trước khi bắt đầu.</p></div>
+      <div class="intro"><h1 id="page-title"><span data-i18n="intro.line1">Dữ liệu trên web.</span><br><span data-i18n="intro.line2">Mang về máy bạn.</span></h1><p data-i18n="intro.description">Nhập địa chỉ trang. Tool sẽ tìm nguồn dữ liệu và kiểm tra cách tải tiếp trước khi bắt đầu.</p></div>
       <form id="scan-form" class="url-form">
-        <label for="site-url">URL trang web</label>
-        <div class="url-row"><input id="site-url" type="url" placeholder="https://example.com/danh-sach" required autocomplete="url"><button id="scan-button" type="submit" class="primary">Nhận diện trang <span aria-hidden="true">↗</span></button></div>
+        <label for="site-url" data-i18n="scan.url">URL trang web</label>
+        <div class="url-row"><input id="site-url" type="url" placeholder="https://example.com/danh-sach" data-i18n-placeholder="scan.placeholder" required autocomplete="url"><button id="scan-button" type="submit" class="primary"><span class="button-label" data-i18n="scan.button">Nhận diện trang</span> <span aria-hidden="true">↗</span></button></div>
       </form>
-      <div class="demo-row"><span>Thử với dữ liệu mẫu:</span><button type="button" id="demo-infinite" class="text-button">Cuộn tải từng cụm</button><button type="button" id="demo-pages" class="text-button">Trang kế tiếp</button></div>
+      <div class="demo-row"><span data-i18n="demo.label">Thử với dữ liệu mẫu:</span><button type="button" id="demo-infinite" class="text-button" data-i18n="demo.infinite">Cuộn tải từng cụm</button><button type="button" id="demo-pages" class="text-button" data-i18n="demo.pages">Trang kế tiếp</button></div>
 
       <div id="notice" role="alert" hidden></div>
       <section id="scan-progress" class="scan-progress" aria-live="polite" hidden>
-        <div class="section-head"><h2 id="scan-stage">Đang mở trang</h2><button type="button" id="cancel-scan" class="text-button">Hủy quét</button></div>
-        <progress aria-label="Tiến độ nhận diện trang"></progress><p id="scan-counts">Đang quan sát trang…</p>
+        <div class="section-head"><h2 id="scan-stage" data-i18n="scan.opening">Đang mở trang</h2><button type="button" id="cancel-scan" class="text-button" data-i18n="scan.cancel">Hủy quét</button></div>
+        <progress aria-label="Tiến độ nhận diện trang" data-i18n-aria-label="scan.progress"></progress><p id="scan-counts" data-i18n="scan.observing">Đang quan sát trang…</p>
       </section>
 
       <section id="report" class="report" aria-labelledby="report-title" hidden>
-        <div class="section-head"><h2 id="report-title">Kết quả nhận diện</h2><span id="capability" class="badge"></span></div>
+        <div class="section-head"><h2 id="report-title" data-i18n="report.title">Kết quả nhận diện</h2><span id="capability" class="badge"></span></div>
         <p id="report-message" class="report-message"></p>
-        <dl class="facts"><div><dt>Response JSON</dt><dd id="report-responses">0</dd></div><div><dt>Bản ghi quan sát</dt><dd id="report-records">0</dd></div><div><dt>Cách tải tiếp</dt><dd id="report-pagination">Chưa xác định</dd></div></dl>
-        <div id="source-field" class="field"><label for="source-select">Nguồn dữ liệu tìm thấy</label><select id="source-select"></select><p id="source-description" class="hint"></p></div>
-        <div class="settings-grid"><div class="field"><label for="strategy">Cách lấy dữ liệu</label><select id="strategy"><option value="auto">Tự chọn</option><option value="browser">Theo dõi trình duyệt</option><option value="api">Gọi API đã nhận diện</option></select></div><div class="field"><label for="max-requests">Giới hạn mỗi lượt</label><input id="max-requests" type="number" min="1" max="10000" value="200"><p class="hint">Số request API hoặc cụm dữ liệu mới. Chuyển câu/thẻ có giới hạn riêng và không làm hết lượt tải.</p></div></div>
-        <div class="file-choice"><label><input type="checkbox" id="download-files"> Tải cả file/ảnh trong dữ liệu</label><p id="file-hint" class="hint">Chỉ tải những đường dẫn file đã nhận diện.</p></div>
-        <div class="report-actions"><button id="start-job" type="button" class="primary">Bắt đầu cào dữ liệu</button><button id="open-login" type="button" class="secondary">Mở trang để đăng nhập</button><button id="save-login" type="button" class="secondary" hidden>Lưu phiên &amp; quét lại</button></div>
+        <dl class="facts"><div><dt data-i18n="report.responses">Response JSON</dt><dd id="report-responses">0</dd></div><div><dt data-i18n="report.records">Bản ghi quan sát</dt><dd id="report-records">0</dd></div><div><dt data-i18n="report.pagination">Cách tải tiếp</dt><dd id="report-pagination" data-i18n="capability.unknown">Chưa xác định</dd></div></dl>
+        <div id="source-field" class="field"><label for="source-select" data-i18n="report.source">Nguồn dữ liệu tìm thấy</label><select id="source-select"></select><p id="source-description" class="hint"></p></div>
+        <div class="settings-grid"><div class="field"><label for="strategy" data-i18n="strategy.label">Cách lấy dữ liệu</label><select id="strategy"><option value="auto" data-i18n="strategy.auto">Tự chọn</option><option value="browser" data-i18n="strategy.browser">Theo dõi trình duyệt</option><option value="api" data-i18n="strategy.api">Gọi API đã nhận diện</option></select></div><div class="field"><label for="max-requests" data-i18n="limits.label">Giới hạn mỗi lượt</label><input id="max-requests" type="number" min="1" max="10000" value="200"><p class="hint" data-i18n="limits.hint">Số request API hoặc cụm dữ liệu mới. Chuyển câu/thẻ có giới hạn riêng và không làm hết lượt tải.</p></div></div>
+        <div class="file-choice"><label><input type="checkbox" id="download-files"> <span data-i18n="files.label">Tải cả file/ảnh trong dữ liệu</span></label><p id="file-hint" class="hint" data-i18n="files.hint">Chỉ tải những đường dẫn file đã nhận diện.</p></div>
+        <div class="report-actions"><button id="start-job" type="button" class="primary" data-i18n="job.start">Bắt đầu cào dữ liệu</button><button id="open-login" type="button" class="secondary" data-i18n="login.open">Mở trang để đăng nhập</button><button id="save-login" type="button" class="secondary" data-i18n="login.save" hidden>Lưu phiên &amp; quét lại</button></div>
         <p id="report-warnings" class="hint"></p>
-        <details class="sample"><summary>Xem dữ liệu đã nhận diện</summary><pre id="scan-sample"></pre></details>
+        <details class="sample"><summary data-i18n="report.sample">Xem dữ liệu đã nhận diện</summary><pre id="scan-sample"></pre></details>
       </section>
 
       <details class="advanced" id="advanced">
-        <summary><span>Cấu hình nâng cao</span><span class="hint">cURL, JSON, HAR</span></summary>
-        <p>Nhập request cURL/JSON/HAR hoặc file cụm dữ liệu đã lưu. File dữ liệu có URL nguồn sẽ được quét lại tự động để tìm các cụm tiếp theo.</p>
-        <label for="import-text">Dán cURL / JSON hoặc chọn file</label>
+        <summary><span data-i18n="advanced.title">Cấu hình nâng cao</span><span class="hint">cURL, JSON, HAR</span></summary>
+        <p data-i18n="advanced.description">Nhập request cURL/JSON/HAR hoặc file cụm dữ liệu đã lưu. File dữ liệu có URL nguồn sẽ được quét lại tự động để tìm các cụm tiếp theo.</p>
+        <label for="import-text" data-i18n="import.label">Dán cURL / JSON hoặc chọn file</label>
         <textarea id="import-text" rows="5" placeholder="curl 'https://example.com/api/items?page=1'" spellcheck="false"></textarea>
-        <div class="inline-actions"><button id="import-button" type="button" class="secondary">Đọc dữ liệu</button><label class="file-button" for="import-file">Chọn JSON / HAR / TXT<input id="import-file" type="file" accept=".json,.har,.txt,application/json,text/plain" hidden></label></div>
-        <div id="har-field" class="field" hidden><label for="har-select">Chọn request JSON trong HAR</label><select id="har-select"></select><button id="har-import" type="button" class="secondary">Dùng request này</button></div>
-        <label for="config-editor">Cấu hình tải dữ liệu</label>
+        <div class="inline-actions"><button id="import-button" type="button" class="secondary" data-i18n="import.button">Đọc dữ liệu</button><label class="file-button" for="import-file"><span data-i18n="import.file">Chọn JSON / HAR / TXT</span><input id="import-file" type="file" accept=".json,.har,.txt,application/json,text/plain" hidden></label></div>
+        <div id="har-field" class="field" hidden><label for="har-select" data-i18n="import.har">Chọn request JSON trong HAR</label><select id="har-select"></select><button id="har-import" type="button" class="secondary" data-i18n="import.useRequest">Dùng request này</button></div>
+        <label for="config-editor" data-i18n="config.label">Cấu hình tải dữ liệu</label>
         <textarea id="config-editor" rows="16" spellcheck="false"></textarea>
-        <p class="hint">itemsPath là đường dẫn mảng trong response. mode hỗ trợ none, page, offset, cursor, nextUrl, batch. Tham số lồng nhau dùng dạng variables.after.</p>
-        <div class="inline-actions"><button id="preview-button" type="button" class="secondary">Xem thử một request</button><button id="manual-start" type="button" class="primary">Tải theo cấu hình</button></div>
+        <p class="hint" data-i18n="config.hint">itemsPath là đường dẫn mảng trong response. mode hỗ trợ none, page, offset, cursor, nextUrl, batch. Tham số lồng nhau dùng dạng variables.after.</p>
+        <div class="inline-actions"><button id="preview-button" type="button" class="secondary" data-i18n="preview.button">Xem thử một request</button><button id="manual-start" type="button" class="primary" data-i18n="job.manual">Tải theo cấu hình</button></div>
         <pre id="preview-result" hidden></pre>
       </details>
     </section>
 
     <aside class="activity" aria-labelledby="activity-title">
-      <div class="section-head"><h2 id="activity-title">Lượt tải của bạn</h2><button id="refresh-jobs" type="button" class="text-button">Làm mới</button></div>
-      <div id="empty-jobs" class="empty-state"><svg viewBox="0 0 80 80" aria-hidden="true"><path d="M17 20h46v40H17zM25 12h30M30 31l10 10 10-10M40 25v16M27 51h26"/></svg><h3>Chưa có lượt tải</h3><p>Nhận diện một trang để xem dữ liệu có thể lấy và bắt đầu lưu về máy.</p></div>
+      <div class="section-head"><h2 id="activity-title" data-i18n="activity.title">Lượt tải của bạn</h2><button id="refresh-jobs" type="button" class="text-button" data-i18n="activity.refresh">Làm mới</button></div>
+      <div class="history-filters">
+        <div><label for="history-search" data-i18n="history.search">Tìm lượt tải</label><input id="history-search" type="search" maxlength="200" placeholder="Tên hoặc mã tác vụ" data-i18n-placeholder="history.placeholder"></div>
+        <div><label for="history-status" data-i18n="history.status">Trạng thái</label><select id="history-status"><option value="" data-i18n="history.all">Tất cả</option><option value="running" data-i18n="status.running">Đang tải</option><option value="paused" data-i18n="status.paused">Tạm dừng</option><option value="limited" data-i18n="status.limited">Đạt giới hạn</option><option value="incomplete" data-i18n="status.incomplete">Chưa tải đủ</option><option value="completed" data-i18n="status.completed">Đã kết thúc</option><option value="failed" data-i18n="status.failed">Có lỗi</option></select></div>
+      </div>
+      <p id="no-matches" class="hint" data-i18n="history.noMatches" hidden>Không có lượt tải phù hợp.</p>
+      <div id="empty-jobs" class="empty-state"><svg viewBox="0 0 80 80" aria-hidden="true"><path d="M17 20h46v40H17zM25 12h30M30 31l10 10 10-10M40 25v16M27 51h26"/></svg><h3 data-i18n="activity.emptyTitle">Chưa có lượt tải</h3><p data-i18n="activity.emptyDescription">Nhận diện một trang để xem dữ liệu có thể lấy và bắt đầu lưu về máy.</p></div>
       <div id="job-list" class="job-list"></div>
+      <nav class="history-pagination" aria-label="Phân trang lượt tải" data-i18n-aria-label="history.pagination"><button id="history-prev" class="text-button" type="button" data-i18n="history.previous" disabled>Trước</button><span id="history-page" class="hint" aria-live="polite"></span><button id="history-next" class="text-button" type="button" data-i18n="history.next" disabled>Sau</button></nav>
       <section id="job-detail" aria-live="polite" hidden>
         <div class="job-heading"><h3 id="job-name"></h3><span id="job-status" class="badge"></span></div>
-        <p id="job-stage"></p><progress id="job-progress" aria-label="Tiến độ lấy dữ liệu"></progress>
-        <div class="counters"><div><strong id="job-items">0</strong><span>Bản ghi đã lưu</span></div><div><strong id="job-pages">0</strong><span>Cụm đã lưu</span></div><div><strong id="job-requests">0</strong><span>Request quan sát</span></div><div><strong id="job-duplicates">0</strong><span>Trùng đã bỏ</span></div></div>
+        <p id="job-stage"></p><progress id="job-progress" aria-label="Tiến độ lấy dữ liệu" data-i18n-aria-label="job.progress"></progress>
+        <div class="counters"><div><strong id="job-items">0</strong><span data-i18n="job.items">Bản ghi đã lưu</span></div><div><strong id="job-pages">0</strong><span data-i18n="job.pages">Cụm đã lưu</span></div><div><strong id="job-requests">0</strong><span data-i18n="job.requests">Request quan sát</span></div><div><strong id="job-duplicates">0</strong><span data-i18n="job.duplicates">Trùng đã bỏ</span></div></div>
         <p id="job-meta" class="hint"></p><p id="job-error" role="alert" hidden></p>
-        <div class="inline-actions"><button id="pause-job" type="button" class="secondary">Tạm dừng</button><button id="resume-job" type="button" class="primary">Chạy tiếp</button></div>
-        <section class="downloads"><h4>Dữ liệu đã lưu</h4><div class="export-links"><a id="export-json" class="export-link" href="#">JSON</a><a id="export-jsonl" class="export-link" href="#">JSONL</a><a id="export-csv" class="export-link" href="#">CSV</a></div><p class="hint">Có thể tải phần đã lưu khi tác vụ còn đang chạy.</p><label for="output-path">Thư mục trên máy</label><div class="path-row"><input id="output-path" type="text" readonly><button id="copy-path" type="button" class="text-button">Sao chép</button></div></section>
-        <details class="log" open><summary>Nhật ký tải dữ liệu</summary><ol id="job-log"></ol></details>
-        <details class="sample"><summary>Bản ghi mới nhất</summary><pre id="job-sample"></pre></details>
+        <div class="inline-actions"><button id="pause-job" type="button" class="secondary" data-i18n="job.pause">Tạm dừng</button><button id="resume-job" type="button" class="primary" data-i18n="job.resume">Chạy tiếp</button></div>
+        <section class="downloads"><h4 data-i18n="downloads.title">Dữ liệu đã lưu</h4><div class="export-links"><a id="export-json" class="export-link" href="#">JSON</a><a id="export-jsonl" class="export-link" href="#">JSONL</a><a id="export-csv" class="export-link" href="#">CSV</a></div><p class="hint" data-i18n="downloads.hint">Có thể tải phần đã lưu khi tác vụ còn đang chạy.</p><label for="output-path" data-i18n="downloads.path">Thư mục trên máy</label><div class="path-row"><input id="output-path" type="text" readonly><button id="copy-path" type="button" class="text-button" data-i18n="downloads.copy">Sao chép</button></div></section>
+        <details class="log" open><summary data-i18n="job.log">Nhật ký tải dữ liệu</summary><ol id="job-log"></ol></details>
+        <details class="sample"><summary data-i18n="job.sample">Bản ghi mới nhất</summary><pre id="job-sample"></pre></details>
       </section>
-      <p class="local-note">Chạy trên máy bạn. Dữ liệu, request và phiên đăng nhập được lưu trong thư mục <code>data</code> của tool.</p>
+      <p class="local-note"><span data-i18n="local.before">Chạy trên máy bạn. Dữ liệu, request và phiên đăng nhập được lưu trong thư mục </span><code>data</code><span data-i18n="local.after"> của tool.</span></p>
     </aside>
   </main>
 </body>

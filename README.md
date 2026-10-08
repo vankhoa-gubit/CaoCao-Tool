@@ -1,6 +1,8 @@
 # Cào Cào
 
-Tool chạy trên máy để nhập **URL trang web**, tự quan sát dữ liệu và cách tải tiếp, rồi lưu kết quả về thư mục dự án. Giao diện tiếng Việt, có tiến độ và báo cáo khả năng cào trước khi chạy.
+Tool chạy trên máy để nhập **URL trang web**, tự quan sát dữ liệu và cách tải tiếp, rồi lưu kết quả về thư mục dự án. Giao diện hỗ trợ tiếng Việt và tiếng Anh, có tiến độ và báo cáo khả năng cào trước khi chạy.
+
+Chọn **Tiếng Việt** hoặc **English** ở thanh đầu trang để chuyển ngôn ngữ. Tiếng Việt là mặc định; lựa chọn được nhớ trên trình duyệt cho lần mở tiếp theo. Có thể chuyển ngay khi đang quét hoặc xem tác vụ. Nội dung dữ liệu nguồn, tên tác vụ và file xuất được giữ nguyên.
 
 ## Chạy tool
 
@@ -47,6 +49,29 @@ Mỗi trang/cụm được ghi thành file hoàn chỉnh trước khi cập nh�
 - Giới hạn trình duyệt tính theo số cụm có bản ghi mới; chuyển từng câu không làm hết giới hạn 200 cụm. Giới hạn thao tác riêng `limits.maxActions` mặc định là 10.000 mỗi lượt để tránh thao tác vô hạn.
 - Tác vụ cũ từng báo hoàn tất được kiểm tra lại từ response đã lưu khi server khởi động. Nếu mới lưu một phần tổng hoặc nguồn còn `hasMore`, trạng thái đổi thành **Chưa tải đủ**; các file dữ liệu đã lưu được giữ nguyên.
 - Sau khi server/máy bị dừng, các tác vụ đang chạy được khôi phục ở trạng thái tạm dừng. Chúng không tự gửi request trở lại.
+
+## Tối ưu tác vụ và lịch sử (1.2.0)
+
+- Tạo mới và **Chạy tiếp** cùng dùng bộ điều phối tối đa **2 tác vụ** trong một tiến trình. Yêu cầu tạo mới giữ chỗ trước khi ghi file; chỗ được trả sau khi tạm dừng, hoàn tất hoặc lỗi. Khi hết chỗ, API trả HTTP **409** cùng thông báo Việt/Anh.
+- Lịch sử có tìm theo tên/mã tác vụ, lọc trạng thái và phân trang **15 lượt/trang**. Có thể truy cập tất cả lượt tải cũ. Nhật ký và mẫu dữ liệu chỉ tải cho lượt đang chọn.
+- Giao diện cập nhật mỗi **1,2 giây** khi có tác vụ/quét đang chạy, **15 giây** khi rảnh và **60 giây** khi tab ẩn. Khi quay lại tab hoặc mạng kết nối lại, giao diện lấy trạng thái mới. Tìm kiếm/lọc không xóa cấu hình hay nội dung đã nhập.
+- Checkpoint phiên bản 2 lưu metadata kèm SHA-256 và dấu cấu hình. Nếu metadata hợp lệ và danh sách file trang khớp, khởi động không đọc lại nội dung trang. Checkpoint cũ, thiếu, hỏng hoặc không khớp sẽ được khôi phục từ các file trang đã ghi.
+- Khóa loại trùng được dựng khi chạy tiếp và giải phóng sau mỗi lượt. File dữ liệu gốc và cách xuất JSON/JSONL/CSV vẫn giữ cấu trúc nguồn. Nếu chuỗi file trang bị đứt ở giữa, tool báo lỗi và yêu cầu khôi phục file trước khi chạy tiếp để tránh ghi đè dữ liệu.
+- Thông báo mới dùng `{code, params}` qua catalog chung Việt/Anh. API/checkpoint vẫn giữ các trường chuỗi để tương thích; giao diện vẫn dịch được nhật ký cũ. Tên tác vụ, dữ liệu nguồn, đường dẫn và file xuất được giữ nguyên.
+
+### API lịch sử
+
+`GET /api/jobs?page=1&limit=15&search=keyword&status=completed` trả `{jobs, pagination, activity}`. `limit` từ 1–100; `status` bỏ trống hoặc là `running`, `paused`, `limited`, `incomplete`, `failed`, `completed`. Trang vượt cuối được đưa về trang cuối.
+
+Danh sách phân trang không chứa `logs`, `samples`, `outputPath`; lấy chi tiết qua `GET /api/jobs/:id`. `GET /api/jobs` không có query vẫn trả định dạng cũ `{jobs}`.
+
+### Đo hiệu năng khởi động
+
+```powershell
+npm run benchmark:startup
+```
+
+Script tạo riêng 10.000 và 100.000 bản ghi trong `.qa/`, so sánh cách khôi phục cũ tại commit `c4e08c9` với metadata mới và chế độ đọc lại file trang. Mỗi chế độ đo 3 lần trong tiến trình Node riêng, lấy trung vị, xác minh đủ ID trong bản xuất và hash từng file trang. Kết quả nằm trong `.qa/startup-benchmark-*/result.json`; số đo đã thực hiện nằm trong `QA_REPORT.md`. Có thể chọn bản cũ khác bằng `npm run benchmark:startup -- --baseline <git-ref>`.
 
 ## Cấu hình nâng cao
 

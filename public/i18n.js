@@ -1,6 +1,8 @@
 import { formatMessage } from './messages.js';
+import { workspaceStrings } from './workspace-i18n.js';
 
 const strings = {
+  ...workspaceStrings,
   'app.title': ['Cào Cào · Tải dữ liệu về máy', 'Cào Cào · Download web data'],
   'brand.home': ['Cào Cào, trang chính', 'Cào Cào, home'],
   'language.label': ['Chọn ngôn ngữ', 'Choose language'],

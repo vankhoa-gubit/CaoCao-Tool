@@ -2,7 +2,7 @@ import { msg, MessageError, errorMessage, fields } from './messages.mjs';
 import { mkdir, readdir, readFile, writeFile, rename, stat, open, rm } from 'node:fs/promises';
 import { join, extname } from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
-import { normalizeConfig, initialState, buildRequest, nextState, getAt, httpUrl } from './config.mjs';
+import { normalizeConfig, initialState, buildRequest, nextState, getAt, httpUrl, fieldPaths } from './config.mjs';
 import { fetchJson, retryFetch, wait } from './net.mjs';
 import { runBrowser } from './browser.mjs';
 import { collectionMetadata } from './detect.mjs';
@@ -39,12 +39,16 @@ function itemKey(item, uniqueKey) {
 }
 
 async function downloadFiles(job, items, signal) {
-  if (!job.config.download.enabled) return [];
+  if (!job.config.download.enabled) return { files: [], errors: [] };
+  const errors = [];
   const urls = new Set();
   for (const item of items) for (const path of job.config.download.paths) {
     const value = getAt(item, path);
     for (const candidate of Array.isArray(value) ? value.flat(2) : [value]) {
-      if (typeof candidate === 'string' && /^(https?:\/\/|\/)/.test(candidate)) urls.add(httpUrl(candidate, job.config.request.url).href);
+      if (typeof candidate === 'string' && /^(https?:\/\/|\/)/.test(candidate)) {
+        try { urls.add(httpUrl(candidate, job.config.request.url).href); }
+        catch (error) { errors.push({ url: candidate, errorMessage: errorMessage(error) }); }
+      }
     }
   }
   const result = [];
@@ -55,7 +59,7 @@ async function downloadFiles(job, items, signal) {
     const target = join(job.directory, 'files', name), temp = `${target}.part`;
     try { await stat(target); result.push({ url, file: `files/${name}` }); continue; } catch { /* Not downloaded yet. */ }
     const sameOrigin = httpUrl(url).origin === httpUrl(job.config.request.url).origin;
-    await retryFetch({ url, headers: sameOrigin ? job.config.request.headers : {}, method: 'GET' }, job.config.limits, signal, () => job.log(msg('download.retry')), async response => {
+    try { await retryFetch({ url, headers: sameOrigin ? job.config.request.headers : {}, method: 'GET' }, job.config.limits, signal, () => job.log(msg('download.retry')), async response => {
       const handle = await open(temp, 'w');
       let bytes = 0;
       try {
@@ -66,11 +70,27 @@ async function downloadFiles(job, items, signal) {
         }
       } finally { await handle.close(); }
       await rename(temp, target);
-    }).catch(async error => { await rm(temp, { force: true }).catch(() => {}); throw error; });
+    }); } catch (error) {
+      await rm(temp, { force: true }).catch(() => {});
+      signal.throwIfAborted();
+      const detail = errorMessage(error); errors.push({ url, errorMessage: detail });
+      job.log(msg('download.failed', { url, error: detail })); continue;
+    }
     result.push({ url, file: `files/${name}` });
     job.log(msg('download.saved', { name }));
   }
-  return result;
+  return { files: result, errors };
+}
+
+export function completionEvidence(config, response, next) {
+  if (next !== null) return null;
+  const p = config.pagination, end = p.mode === 'batch' ? p.batch : p;
+  if (end.hasMorePath && getAt(response, end.hasMorePath) === false) return { type: 'sourceEnd', path: end.hasMorePath };
+  if ((p.mode === 'batch' || ['cursor', 'nextUrl'].includes(p.mode)) && end.nextPath) {
+    const value = getAt(response, end.nextPath);
+    if (value === null || value === '') return { type: 'sourceEnd', path: end.nextPath };
+  }
+  return null;
 }
 
 export class Job {
@@ -80,11 +100,13 @@ export class Job {
     this.directory = join(manager.directory, id);
     this.createdAt = snapshot?.createdAt || new Date().toISOString();
     this.status = snapshot?.status || 'paused'; this.state = snapshot && Object.hasOwn(snapshot, 'state') ? snapshot.state : initialState(config);
-    this.progress = snapshot?.progress || { pages: 0, items: 0, duplicates: 0, files: 0, requests: 0, elapsedMs: 0, ...fields(msg('job.ready'), 'stage'), position: null, total: config.kind === 'browser' ? config.source?.total ?? null : null };
+    this.progress = snapshot?.progress ? { ...snapshot.progress } : { pages: 0, items: 0, duplicates: 0, files: 0, requests: 0, elapsedMs: 0, ...fields(msg('job.ready'), 'stage'), position: null, total: config.kind === 'browser' ? config.source?.total ?? null : null };
     this.logs = snapshot?.logs || []; this.error = snapshot?.error || null;
     this.errorMessage = snapshot?.errorMessage || null;
     this.updatedAt = snapshot?.updatedAt;
     this.hasMore = snapshot?.hasMore;
+    this.completionEvidence = snapshot?.completionEvidence || null;
+    this.progress.fileErrors ??= 0;
     this.keys = new Set(); this.requestHashes = new Set(); this.responseHashes = [];
     this.keysLoaded = false;
     this.samples = snapshot?.samples || []; this.promise = null; this.controller = null;
@@ -94,11 +116,11 @@ export class Job {
   setStage(message) { Object.assign(this.progress, fields(message, 'stage')); }
   setError(message) { if (message == null) { this.error = null; this.errorMessage = null; } else Object.assign(this, fields(message, 'error')); }
   summary({ detail = true } = {}) {
-    return { id: this.id, name: this.config.name, kind: this.config.kind || 'api', status: this.status, createdAt: this.createdAt, updatedAt: this.updatedAt || this.createdAt, error: this.error, errorMessage: this.errorMessage, progress: { ...this.progress, elapsedMs: this.progress.elapsedMs + (this.startedAt ? Date.now() - this.startedAt : 0) }, ...(detail ? { logs: this.logs, samples: smallSample(this.samples), outputPath: this.directory } : {}) };
+    return { id: this.id, sourceId: this.config.sourceId || null, queueId: this.config.queueId || null, name: this.config.name, kind: this.config.kind || 'api', status: this.status, createdAt: this.createdAt, updatedAt: this.updatedAt || this.createdAt, error: this.error, errorMessage: this.errorMessage, progress: { ...this.progress, elapsedMs: this.progress.elapsedMs + (this.startedAt ? Date.now() - this.startedAt : 0) }, ...(detail ? { logs: this.logs, samples: smallSample(this.samples), outputPath: this.directory } : {}) };
   }
   async persist() {
     this.updatedAt = new Date().toISOString();
-    const metadata = JSON.parse(JSON.stringify({ ...this.summary(), state: this.state, checkpointPage: this.progress.pages, progress: this.progress, hasMore: this.hasMore, formatVersion: 2, configHash: this.configHash }));
+    const metadata = JSON.parse(JSON.stringify({ ...this.summary(), state: this.state, checkpointPage: this.progress.pages, progress: this.progress, hasMore: this.hasMore, completionEvidence: this.completionEvidence, formatVersion: 2, configHash: this.configHash }));
     await atomicJson(join(this.directory, 'checkpoint.json'), { ...metadata, metadataHash: hash(canonical(metadata)) });
   }
   async restore(snapshot) {
@@ -110,11 +132,13 @@ export class Job {
     const trusted = this.manager.restoreMode !== 'reconcile' && consistent;
     this.restoreSource = trusted ? 'metadata' : 'pages';
     let last;
-    let count = 0, fileCount = 0, declaredTotal = null, hasMore;
+    let count = 0, fileCount = 0, fileErrors = 0, declaredTotal = null, hasMore, evidence = null;
     for (const file of trusted ? [] : files) {
       const page = JSON.parse(await readFile(join(this.directory, 'pages', file), 'utf8'));
       last = page;
       count += page.items.length; fileCount += page.files?.length || 0;
+      fileErrors += page.fileErrors?.length || 0;
+      evidence = page.completionEvidence || (page.response && this.config.kind !== 'browser' ? completionEvidence(this.config, page.response, page.nextState) : null) || evidence;
       this.samples = page.items.slice(-3);
       if (this.config.kind !== 'browser' && page.response && this.config.pagination.totalPath) {
         const total = getAt(page.response, this.config.pagination.totalPath);
@@ -131,7 +155,7 @@ export class Job {
     if (!trusted && !consistent) this.state = last ? last.nextState : initialState(this.config);
     else if (snapshot && Object.hasOwn(snapshot, 'state')) this.state = snapshot.state;
     if (trusted) { count = this.progress.items; hasMore = this.hasMore; }
-    else { this.progress.pages = files.length; this.progress.items = count; this.progress.files = fileCount; this.hasMore = hasMore; }
+    else { this.progress.pages = files.length; this.progress.items = count; this.progress.files = fileCount; this.progress.fileErrors = fileErrors; this.hasMore = hasMore; this.completionEvidence = evidence; }
     if (declaredTotal !== null) this.progress.total = declaredTotal;
     if (this.status === 'running') { this.status = 'paused'; this.log(msg('job.recovered')); }
     if (this.status === 'completed' && (this.config.pagination.mode !== 'batch' && this.progress.total != null && count < this.progress.total || hasMore === true)) {
@@ -171,6 +195,7 @@ export class Job {
         const metadata = collectionMetadata(capture.response, capture.itemsPath || this.config.source?.itemsPath || '$');
         if (metadata.total !== null) this.progress.total = metadata.total;
         if (metadata.hasMore !== undefined) this.hasMore = metadata.hasMore;
+        if (metadata.hasMore === false) this.completionEvidence = { type: 'sourceEnd', path: metadata.hasMorePath };
       }
     }
     const items = [], keys = [], inPage = new Set();
@@ -186,9 +211,10 @@ export class Job {
       this.state = next; this.progress.position = position; this.progress.duplicates += duplicates;
       await this.persist(); return 0;
     }
-    const files = await downloadFiles(this, items, this.controller.signal);
+    const { files, errors: fileErrors } = await downloadFiles(this, items, this.controller.signal);
     const index = this.progress.pages + 1;
-    const page = { index, at: new Date().toISOString(), position, items, keys, duplicates, files, nextState: next, ...details, ...(this.config.saveRaw ? { response } : {}) };
+    const evidence = this.config.kind === 'browser' ? this.completionEvidence : completionEvidence(this.config, response, next);
+    const page = { index, at: new Date().toISOString(), position, items, keys, duplicates, files, fileErrors, completionEvidence: evidence, nextState: next, ...details, ...(this.config.saveRaw ? { response } : {}) };
     // A complete page is the durable transaction. Resume can reconstruct a stale checkpoint from it.
     await atomicJson(join(this.directory, 'pages', `${String(index).padStart(8, '0')}.json`), page);
     for (const key of keys) this.keys.add(key);
@@ -196,6 +222,8 @@ export class Job {
     if (details.responseHash) this.responseHashes = [...this.responseHashes.slice(-1), details.responseHash];
     this.state = next; this.progress.pages = index; this.progress.items += items.length;
     this.progress.duplicates += duplicates; this.progress.files += files.length; this.progress.position = position;
+    this.progress.fileErrors += fileErrors.length;
+    if (evidence) this.completionEvidence = evidence;
     this.samples = items.slice(-3); this.log(msg('job.saved', { batch: index, count: items.length, duplicates }));
     await this.persist(); return items.length;
   }
@@ -262,6 +290,7 @@ export class Job {
   }
   async pause() { if (this.promise) { this.controller.abort(); await this.promise; } return this.summary(); }
   async *records(files) {
+    files ??= await pageFiles(this.directory);
     for (const file of files) { const page = JSON.parse(await readFile(join(this.directory, 'pages', file), 'utf8')); yield* page.items; }
   }
   async export(format) {
@@ -345,7 +374,8 @@ export class JobManager {
   async createJob(input) {
     if (this.closing) throw new MessageError('manager.closed');
     const normalized = normalizeConfig(input);
-    const config = { ...normalized, kind: input.kind === 'browser' ? 'browser' : 'api', ...(input.kind === 'browser' ? { source: input.source || null } : {}) };
+    for (const key of ['sourceId', 'queueId']) if (input[key] != null && (typeof input[key] !== 'string' || !/^[a-zA-Z0-9-]{1,100}$/.test(input[key]))) throw new MessageError('source.invalid');
+    const config = { ...normalized, kind: input.kind === 'browser' ? 'browser' : 'api', ...(input.kind === 'browser' ? { source: input.source || null } : {}), ...(input.sourceId ? { sourceId: input.sourceId } : {}), ...(input.queueId ? { queueId: input.queueId } : {}), ...(input.exportFields ? { exportFields: fieldPaths(input.exportFields) } : {}), ...(input.requiredFields ? { requiredFields: fieldPaths(input.requiredFields) } : {}) };
     if (config.kind === 'browser' && config.source) { httpUrl(config.source.origin); if (!config.source.pathname?.startsWith('/') || !['GET', 'POST'].includes(config.source.method)) throw new MessageError('browser.source'); getAt({}, config.source.itemsPath); }
     const id = `${Date.now().toString(36)}-${randomUUID().slice(0, 8)}`;
     const job = new Job(this, config, id);
@@ -362,7 +392,7 @@ export class JobManager {
     const page = Number(options.page ?? 1), limit = Number(options.limit ?? 15);
     const search = String(options.search || '').trim().toLocaleLowerCase(), status = options.status || '';
     if (!Number.isSafeInteger(page) || page < 1 || !Number.isSafeInteger(limit) || limit < 1 || limit > 100 || search.length > 200 || status && !['running', 'paused', 'limited', 'incomplete', 'failed', 'completed'].includes(status)) throw new MessageError('history.query');
-    jobs = jobs.filter(job => (!status || job.status === status) && (!search || `${job.config.name} ${job.id}`.toLocaleLowerCase().includes(search)));
+    jobs = jobs.filter(job => (!options.sourceId || job.config.sourceId === options.sourceId) && (!status || job.status === status) && (!search || `${job.config.name} ${job.id}`.toLocaleLowerCase().includes(search)));
     const total = jobs.length, pages = Math.max(1, Math.ceil(total / limit)), current = Math.min(page, pages);
     return { jobs: jobs.slice((current - 1) * limit, current * limit).map(job => job.summary({ detail: false })), pagination: { page: current, limit, total, pages } };
   }

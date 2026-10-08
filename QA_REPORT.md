@@ -1,5 +1,41 @@
 # Kết quả kiểm tra Cào Cào
 
+## Mở rộng nguồn và dữ liệu 1.3.0 (08/10/2026, Asia/Bangkok)
+
+Issue: [#5](https://github.com/vankhoa-gubit/CaoCao-Tool/issues/5). Nhánh: `codex/issue-5-source-workspace`, dựa trên bản tối ưu `8a41a8c`.
+
+**PASS: 99/99 ca** qua `npm test` trên Node.js **v24.21.0**: 78 ca hồi quy và 21 ca mở rộng (13 backend, 8 UI). Lượt phát hành cuối hoàn tất trong **112,0 giây**, không FAIL, CANCELLED hoặc SKIPPED. Log: `.qa/expansion-release-test.log`. Kiểm thử mới: `test/workspace.test.mjs`, `test/workspace-ui.test.mjs`. `git diff --check` không có lỗi whitespace.
+
+| Nhóm | Kết quả và bằng chứng |
+| --- | --- |
+| Hồ sơ | Chuẩn hóa/dedupe đường dẫn trường, giữ lịch khi sửa không đổi interval, persistence và roundtrip form API. Kiểm tra tên/URL/path/interval sai, chặn reuse credentials sang origin khác. Lưu hồ sơ từ scan thật của `/demo/infinite`, giữ API batch và tải đủ 18 ID |
+| Queue | Nhập nhiều URL, loại URL lặp, theo dõi từng trạng thái; chạy cùng lúc đạt 2 request nhưng không vượt 2 slot. Queue dùng chung chỗ với tạo/Chạy tiếp trực tiếp. Retry giữ job ID/checkpoint/config đã đóng băng; scan bị yêu cầu đăng nhập có thể retry riêng và nhận diện lại |
+| Hủy/đóng | Hủy mục chưa chạy không tạo job; hủy scan và job đang chạy; đóng trong lúc tạo job vẫn lưu trạng thái paused và trả chỗ. Store JSON hỏng được báo lỗi và giữ nguyên file. Server restore lượt gián đoạn paused; mục queued chỉ chạy sau khi server listen |
+| Tương tác giữa màn hình | Job được chạy tiếp qua Tải nhanh hiện running trong queue; chặn retry trùng và chặn xóa nguồn đang chạy. Hủy từ queue dừng job đó; job hoàn tất không còn cho retry |
+| Lịch | Lưu nextRunAt, nhiều tick đồng thời không tạo trùng; sau quá hạn chỉ có một lượt, bỏ qua nguồn đang chạy và tính kỳ tiếp theo từ hiện tại. Test bằng clock được điều khiển và job HTTP thật; UI hiển thị lịch mới và lịch sử theo nguồn |
+| Bảng/API | 57 bản ghi qua 3 trang 25/25/7 trên UI; API clamp trang vượt cuối, tìm không phân biệt hoa/thường, nested column, khóa có dấu phẩy, full JSON lớn hơn 4.000 ký tự. Query sai trả 400; bản ghi không tồn tại trả 404 |
+| Xuất lọc | JSON/JSONL/CSV thực sự khớp tìm kiếm và cột áp dụng; JSON giữ nội dung gốc, CSV bảo vệ `=1+1` và tên cột có dấu phẩy. Dùng endpoint streaming, không tạo thêm file export cho từng query |
+| So sánh | Hai lượt cùng nguồn/khóa: 1 mới, 1 thay đổi, 1 vắng mặt, 55 không đổi trên UI; mở bản gốc trước/sau. API lọc thay đổi, từ chối so sánh một lượt với chính nó, cảnh báo khi một lượt chưa xác nhận đủ. Dùng page.keys, hash nội dung và chỉ số bản ghi |
+| Chất lượng | Trường trống/bắt buộc, thiếu trường, khác biệt kiểu và schema mới/vắng; `0`/`false` không bị tính trống. File HTTP 404 vẫn giữ bản ghi đã commit, ghi 1 lỗi và chỉ tính file thành công. Lỗi file/bằng chứng cursor kết thúc còn sau restart |
+| Bằng chứng hoàn tất | Kiểm tra total, cursor null, chưa có bằng chứng và partial. Quality/compare giữ trạng thái tại snapshot, không chuyển missing thành đã xác nhận đủ khi job hoàn tất giữa lúc đọc |
+| Việt/Anh | Chuyển ngôn ngữ giữ giá trị form, bộ lọc, chọn cột, tên và dữ liệu nguồn; nhãn/queue/schema/báo cáo được dịch. Form giữ focus qua refresh. Tất cả data-i18n HTML có cả hai bản dịch |
+| Responsive | Nguồn và bảng tại **1440×900**, **768×1024**, **390×844** trong cả Việt/Anh; không tràn ngang toàn trang hoặc controls ngoài vùng hiển thị. Bảng rộng cuộn ngang trong vùng có thể focus. Chromium không có pageerror |
+
+### Bằng chứng UI và rà ảnh
+
+- Lượt phát hành: `.qa/workspace-ui-vWSJ6p/`, 12 ảnh `sources/data × vi/en × 1440/768/390`.
+- Đã rà trực quan nguồn English desktop, dữ liệu English mobile trong `.qa/workspace-ui-EvW8oe/`; dữ liệu English desktop và nguồn Vietnamese mobile trong `.qa/workspace-ui-c9LfK5/`. Layout không chồng nhãn/nút; form xếp một cột trên mobile, bảng cuộn trong vùng bảng. Các ảnh mobile full-page dài được xem ở mức thu nhỏ; kiểm tra tọa độ controls được chạy bằng Playwright ở viewport thật.
+- Lượt kiểm tra mục tiêu sau sửa tương tác queue: **21/21 PASS**, 22,6 giây, log `.qa/expansion-targeted-final.log`; sau đó chạy lại toàn bộ 99 ca ở mã phát hành.
+- Hồi quy của lịch sử và ngôn ngữ cũng được chạy trong suite cuối: `.qa/history-ui-5Ds85v/`, `.qa/language-nY2lMs/`.
+
+### Phạm vi và giới hạn
+
+Mọi fixture, lịch giả lập, sessions, scan, dữ liệu và ảnh mới nằm trong `.qa/`; thư mục `data/` thật không dùng để seed hoặc kiểm thử. Đây là HTTP/API và Chromium thật với nguồn cục bộ, không phải bằng chứng cho website bên ngoài, production, Edge hoặc thiết bị di động thật.
+
+Lịch chỉ chạy khi server hoạt động, độ chính xác theo tick 500 ms và chỗ chạy còn trống. So sánh báo vắng mặt giữa snapshot; ngay cả khi nguồn báo hết/tổng đủ, kết quả không chứng minh bản ghi bị xóa ở hệ thống gốc. Nguồn dùng content hash/DOM `_key` được cảnh báo thiếu ID ổn định. Lượt lỗi file có thể hoàn tất phần bản ghi, cần xem tab chất lượng để biết file chưa tải được.
+
+Tìm kiếm/phân trang đọc tuần tự file trang; chưa benchmark mới cho bảng/report/compare trên dữ liệu lớn. So sánh giữ metadata khóa/hash/chỉ số theo số bản ghi; báo cáo có cache tối đa 4 snapshot và giới hạn 500 trường/100 chi tiết lỗi. Không suy ra số đo hiệu năng phần mở rộng từ benchmark khởi động 1.2.0 bên dưới.
+
 ## Tối ưu lõi 1.2.0 (08/10/2026, Asia/Bangkok)
 
 Issue: [#3](https://github.com/vankhoa-gubit/CaoCao-Tool/issues/3). Nhánh: `codex/issue-3-core-optimizations`, dựa trên bản Việt/Anh `c4e08c9`.

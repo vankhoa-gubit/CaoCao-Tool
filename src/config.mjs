@@ -48,6 +48,13 @@ function integer(value, fallback, min, max, label) {
 
 function string(value, fallback = '') { return value == null ? fallback : String(value).trim(); }
 
+export function fieldPaths(value = []) {
+  if (!Array.isArray(value) || value.length > 100 || value.some(path => typeof path !== 'string' || path.length > 200)) throw new MessageError('source.fields');
+  const paths = [...new Set(value.map(path => path.trim()).filter(Boolean))];
+  for (const path of paths) pathParts(path);
+  return paths;
+}
+
 export function normalizeConfig(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw new MessageError('config.object');
   const req = input.request || {};

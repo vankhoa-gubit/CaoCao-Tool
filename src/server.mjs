@@ -26,7 +26,7 @@ export async function createApp({ dataDirectory = join(projectRoot, 'data'), ses
   const sessions = suppliedSessions || new BrowserSessions(join(dataDirectory, 'sessions'));
   const manager = await new JobManager(join(dataDirectory, 'jobs'), sessions).init();
   const scans = new Map();
-  const staticFiles = { '/': ['index.html', 'text/html; charset=utf-8'], '/app.js': ['app.js', 'text/javascript; charset=utf-8'], '/style.css': ['style.css', 'text/css; charset=utf-8'] };
+  const staticFiles = { '/': ['index.html', 'text/html; charset=utf-8'], '/app.js': ['app.js', 'text/javascript; charset=utf-8'], '/i18n.js': ['i18n.js', 'text/javascript; charset=utf-8'], '/style.css': ['style.css', 'text/css; charset=utf-8'] };
   const server = http.createServer(async (request, response) => {
     const json = (value, status = 200) => { response.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }); response.end(JSON.stringify(value)); };
     try {

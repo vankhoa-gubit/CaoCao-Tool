@@ -1,5 +1,28 @@
 # Kết quả kiểm tra Cào Cào
 
+## Ngôn ngữ giao diện (08/10/2026, Asia/Bangkok)
+
+Issue: [#2](https://github.com/vankhoa-gubit/CaoCao-Tool/issues/2). Nhánh: `codex/issue-2-english-language`.
+
+**PASS: 63/63 ca** qua `npm test`, gồm 51 ca hiện có và 12 ca Việt/Anh mới. Lượt cuối hoàn tất trong **109,3 giây**, không có FAIL, CANCELLED hoặc SKIPPED. Log: `.qa/english-language-test.log`.
+
+| Kiểm tra Việt/Anh | Kết quả | Bằng chứng |
+| --- | --- | --- |
+| Nút ngôn ngữ và bàn phím | PASS | Enter chuyển Việt → Anh; cập nhật `html.lang`, tiêu đề, nhãn hỗ trợ đọc màn hình và trạng thái nút; giữ focus |
+| Lưu lựa chọn | PASS | Reload giữ English; giá trị lưu không được hỗ trợ dùng tiếng Việt; nút vẫn hoạt động khi localStorage bị chặn |
+| Đồng bộ các tab | PASS | Đổi ngôn ngữ ở tab khác cập nhật tab hiện tại và giữ cấu hình đang nhập |
+| Chuyển khi đang quét/tạo tác vụ | PASS | Giữ URL và trạng thái khóa nút; chỉ tạo một lượt quét và một yêu cầu tạo tác vụ |
+| Báo cáo và lựa chọn nguồn | PASS | Nhãn, báo cáo nhận diện và mẫu chuyển theo ngôn ngữ; giữ nguồn DOM, chiến lược, giới hạn và checkbox tải file |
+| Tải dữ liệu bằng giao diện tiếng Anh | PASS | Nhận diện nguồn mẫu, đạt giới hạn, chạy tiếp tới Completed; xuất JSON đủ 18 bản ghi và 18 ID duy nhất |
+| Trạng thái, nhật ký và lỗi | PASS | Trạng thái giới hạn/chạy tiếp/hoàn tất và nhật ký cập nhật ngay; dịch lỗi JSON ở client và lỗi giới hạn trả từ backend |
+| Preview và nhập archive | PASS | Dịch nhãn kết quả, thông báo nhập file, tổng và offset; giữ cấu hình, request và nội dung nguồn tiếng Việt |
+| Định dạng số | PASS | Bộ đếm `1.234 / 5.678` ở tiếng Việt thành `1,234 / 5,678` ở English; giữ tên người dùng đặt và nội dung bản ghi |
+| Responsive và JavaScript | PASS | Cả hai ngôn ngữ tại 320×900, 375×900, 414×900, 768×900 và 1440×900; không tràn ngang, nút không vượt viewport, không có pageerror |
+
+Đã xem trực tiếp ảnh desktop và mobile 320 px ở cả hai ngôn ngữ. Ảnh của lượt kiểm tra cuối nằm tại `.qa/language-LHRrXg/screenshots/`; dữ liệu kiểm tra nằm trong `.qa/`. Phạm vi chứng minh là giao diện web trên trình duyệt Chromium/Edge với HTTP server và dữ liệu mẫu cục bộ.
+
+## Lượt kiểm tra trước
+
 Ngày kiểm tra: **07/10/2026**, múi giờ Asia/Bangkok.
 
 ## Kết quả

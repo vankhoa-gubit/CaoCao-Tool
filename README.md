@@ -1,6 +1,8 @@
 # Cào Cào
 
-Tool chạy trên máy để nhập **URL trang web**, tự quan sát dữ liệu và cách tải tiếp, rồi lưu kết quả về thư mục dự án. Giao diện tiếng Việt, có tiến độ và báo cáo khả năng cào trước khi chạy.
+Tool chạy trên máy để nhập **URL trang web**, tự quan sát dữ liệu và cách tải tiếp, rồi lưu kết quả về thư mục dự án. Giao diện hỗ trợ tiếng Việt và tiếng Anh, có tiến độ và báo cáo khả năng cào trước khi chạy.
+
+Chọn **Tiếng Việt** hoặc **English** ở thanh đầu trang để chuyển ngôn ngữ. Tiếng Việt là mặc định; lựa chọn được nhớ trên trình duyệt cho lần mở tiếp theo. Có thể chuyển ngay khi đang quét hoặc xem tác vụ. Nội dung dữ liệu nguồn, tên tác vụ và file xuất được giữ nguyên.
 
 ## Chạy tool
 

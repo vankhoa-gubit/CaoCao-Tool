@@ -1,5 +1,7 @@
+import { workspaceMessages } from './workspace-i18n.js';
 // Stable message codes shared by the server and browser. Source data stays verbatim.
 export const catalog = {
+  ...workspaceMessages,
   "request.failed": [
     "Yêu cầu thất bại.",
     "The request failed."

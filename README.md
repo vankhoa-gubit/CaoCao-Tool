@@ -50,6 +50,77 @@ Mỗi trang/cụm được ghi thành file hoàn chỉnh trước khi cập nh�
 - Tác vụ cũ từng báo hoàn tất được kiểm tra lại từ response đã lưu khi server khởi động. Nếu mới lưu một phần tổng hoặc nguồn còn `hasMore`, trạng thái đổi thành **Chưa tải đủ**; các file dữ liệu đã lưu được giữ nguyên.
 - Sau khi server/máy bị dừng, các tác vụ đang chạy được khôi phục ở trạng thái tạm dừng. Chúng không tự gửi request trở lại.
 
+## Nguồn, hàng đợi và dữ liệu (1.3.0)
+
+Thanh điều hướng có **Tải nhanh**, **Nguồn & hàng đợi** và **Xem dữ liệu**. Tất cả khu vực hỗ trợ Việt/Anh; dữ liệu nguồn và nội dung form được giữ khi đổi ngôn ngữ.
+
+### Hồ sơ nguồn
+
+Trong **Nguồn & hàng đợi**, tạo hồ sơ bằng tên, URL và cách lấy dữ liệu. Có thể bấm **Lưu thành hồ sơ** ở kết quả nhận diện hoặc cấu hình nâng cao để điền sẵn form, rồi bấm **Lưu hồ sơ**.
+
+- **Request API đã cấu hình:** nhập endpoint, GET/POST, đường dẫn mảng, khóa ID, phân trang `none/page/offset/cursor/nextUrl/batch`. Form có tham số query/body, điểm bắt đầu, bước tăng, kích thước, cursor/URL/cờ kết thúc/tổng và token cụm. Headers, payload và giới hạn nằm trong phần có thể mở rộng.
+- **Nhận diện lại mỗi lượt:** quét URL trong mỗi lượt mới và dùng cấu hình được nhận diện; giữ trường ưu tiên, trường bắt buộc, giới hạn và lựa chọn tải file trong hồ sơ.
+- **Theo dõi trình duyệt:** dùng nguồn đã nhận diện nếu lưu từ Tải nhanh; hồ sơ mới lấy nội dung trang. Khóa `_key` của nội dung hiển thị không được xem là ID ổn định khi so sánh.
+- Trường ưu tiên và trường bắt buộc hỗ trợ đường dẫn như `id`, `nested.title`, mỗi dòng một trường hoặc ngăn bằng dấu phẩy. Trường ưu tiên áp dụng cho bảng/xuất lọc; bản ghi gốc vẫn được lưu đầy đủ.
+- Chọn ID ổn định để so sánh thay đổi. **Thêm nguồn vào hàng đợi** lưu các giá trị form hiện tại trước khi chạy. Xóa hồ sơ giữ lại file và lịch sử tải; hồ sơ có lượt đang chờ/chạy cần hủy các lượt đó trước.
+
+### Nhiều URL và hàng đợi
+
+Dán **1–100 URL HTTP/HTTPS**, mỗi URL một dòng, chọn hồ sơ hoặc tự nhận diện từng URL. URL lặp trong cùng lần nhập được gộp lại. Hàng đợi và lịch dùng chung giới hạn **2 lượt** với Tải nhanh và Chạy tiếp; giai đoạn nhận diện của hàng đợi cũng giữ một chỗ.
+
+Mỗi mục có trạng thái, số bản ghi, số lần thử và lỗi riêng. **Hủy lượt** dừng việc nhận diện/tải. **Thử lại** tiếp tục job đã có từ checkpoint; lượt thất bại trước khi tạo job sẽ được nhận diện lại. Lượt đang chạy và đã hoàn tất không được thử lại. Khi khởi động lại, lượt đang chờ tiếp tục chạy; lượt bị gián đoạn được giữ ở trạng thái tạm dừng để người dùng thử lại.
+
+Job giữ cấu hình tại thời điểm được tạo. Mục đang chờ dùng hồ sơ tại thời điểm bắt đầu; chỉnh hồ sơ không thay request của job đã tạo. Khi dùng một hồ sơ API cho URL khác, URL đó phải cùng origin với request đã lưu và trở thành URL request của lượt đó. Quy tắc này bảo vệ headers đăng nhập; URL trang gốc của hồ sơ vẫn có thể khác endpoint API. Retry job giữ nguyên endpoint và các file đã lưu.
+
+### Bảng và xuất lọc
+
+Bấm **Xem dữ liệu** trong một lượt tải hoặc chọn nguồn/lượt trong khu vực dữ liệu. Danh sách chọn lượt có phân trang để truy cập lịch sử cũ.
+
+- Bảng có 25/50/100/200 bản ghi mỗi trang, tìm kiếm toàn bộ JSON không phân biệt hoa/thường, chọn cột và thêm đường dẫn lồng nhau. Số trang vượt cuối được đưa về trang cuối.
+- Ô bảng chỉ hiển thị tối đa 400 ký tự; **Xem đầy đủ** mở bản ghi JSON gốc. Bảng rộng có thể cuộn ngang bằng chuột hoặc bàn phím trong vùng bảng.
+- JSON/JSONL/CSV dưới bảng xuất **tất cả bản ghi phù hợp bộ lọc**, với các cột đang áp dụng, không chỉ trang hiện tại. Trường lồng nhau được xuất bằng tên đường dẫn cột. CSV tiếp tục bảo vệ công thức. Nút xuất trong Tải nhanh xuất bản gốc đầy đủ.
+- Đọc và xuất theo các file trang đã commit, giữ tối đa một trang nguồn và trang kết quả trong RAM. Bảng đọc một snapshot; **Đọc lại dữ liệu** cập nhật lượt đang chạy. Xuất lọc dùng snapshot tại lúc gửi yêu cầu xuất.
+
+### Lịch và so sánh
+
+Bật **Tải định kỳ**, đặt khoảng 1–525600 phút và lưu hồ sơ. Lịch chạy khi server đang mở, lưu thời điểm tiếp theo trong `data/workspace.json`. Sau downtime chỉ thêm một lượt đến hạn. Nguồn còn lượt đang chờ/chạy sẽ bỏ qua kỳ đó; thời điểm kế tiếp tính từ hiện tại, tránh chạy chồng hoặc tải bù hàng loạt.
+
+Trong **So sánh lượt tải**, chọn hai lượt của cùng hồ sơ và cùng khóa loại trùng. Kết quả gồm mới, thay đổi, vắng mặt và không đổi, có lọc/phân trang và mở bản ghi trước/sau. So sánh dùng khóa đã lưu và hash nội dung chuẩn hóa, giữ khóa/hash/chỉ số trong RAM thay vì toàn bộ bản ghi. Chọn trang lịch sử khác trong bộ chọn lượt để lấy một baseline cũ hơn.
+
+**Vắng mặt** là kết quả giữa hai snapshot. Khi một lượt chưa có bằng chứng lấy đủ, giao diện ghi rõ đây là ứng viên, chưa xác nhận bản ghi đã biến mất ở nguồn. Khi dùng hash nội dung hoặc `_key` thay vì ID ổn định, thay đổi nội dung có thể xuất hiện thành mới/vắng mặt. Snapshot và cờ kết thúc do nguồn khai báo không chứng minh việc xóa ở hệ thống gốc.
+
+### Báo cáo chất lượng
+
+Báo cáo đọc dữ liệu khi người dùng mở tab, thống kê có/thiếu trường, giá trị trống, kiểu dữ liệu và số bản ghi vi phạm trường bắt buộc. `0` và `false` có dữ liệu; `null`, chuỗi rỗng/chỉ khoảng trắng, mảng rỗng và trường vắng được xem là trống. Trường nested được theo dõi tối đa 6 cấp, tối đa 500 trường; chi tiết lỗi file hiển thị tối đa 100, tổng lỗi vẫn đầy đủ.
+
+Lỗi HTTP/kích thước/kết nối khi tải file được lưu cùng cụm và nhật ký; bản ghi nguồn vẫn được commit, lượt có thể hoàn tất với cảnh báo lỗi file. File chưa tải được không được tính vào số file thành công. Hủy tác vụ vẫn dừng commit đang thực hiện. Báo cáo cấu trúc đối chiếu với lượt trước cùng nguồn, nêu trường mới/vắng và khác biệt kiểu; có cảnh báo nếu một lượt chưa được xác nhận lấy đủ.
+
+Mức xác nhận:
+
+| Mức | Bằng chứng |
+| --- | --- |
+| Đủ theo tổng nguồn khai báo | Lượt hoàn tất, số ID đã lưu đạt tổng toàn nguồn; tổng trong một cụm không được dùng cho toàn bộ nguồn |
+| Nguồn xác nhận hết dữ liệu | Lượt hoàn tất và cờ còn dữ liệu/cụm bằng `false`, hoặc cursor/URL/token cụm tiếp theo rỗng được lưu |
+| Chưa có bằng chứng lấy đủ | Lượt hoàn tất qua trang rỗng, trang ngắn hoặc trình duyệt không tiến triển, nhưng thiếu tổng/cờ kết thúc rõ ràng |
+| Lượt còn thiếu/chưa kết thúc | Đang chạy, tạm dừng, lỗi, đạt giới hạn hoặc chưa đủ tổng |
+
+### API mở rộng
+
+| Endpoint | Chức năng |
+| --- | --- |
+| `GET/POST /api/sources`; `GET/POST/DELETE /api/sources/:id` | Danh sách, tạo, đọc, sửa, xóa hồ sơ |
+| `POST /api/sources/:id/run`; `GET /api/sources/:id/runs?page=&limit=` | Thêm nguồn vào hàng đợi; lịch sử theo nguồn |
+| `GET /api/workspace?page=&status=` | Nguồn và snapshot hàng đợi, 20 mục/trang |
+| `POST /api/queue` | `{urls: ["https://..."], sourceId?: "..."}`; cũng nhận URLs dạng text nhiều dòng |
+| `POST /api/queue/:id/retry` hoặc `/cancel` | Thử lại/hủy từng lượt |
+| `GET /api/jobs/:id/records?page=&limit=&search=&columns=` | Bảng; `columns` là JSON array được URL encode |
+| `GET /api/jobs/:id/records/:index` | JSON đầy đủ theo chỉ số 0-based |
+| `GET /api/jobs/:id/records/export/json\|jsonl\|csv` | Xuất lọc dạng streaming, hỗ trợ `search`/`columns` |
+| `GET /api/jobs/:id/compare?base=&type=&page=&limit=` | So sánh; `type` trống hoặc `added/changed/missing` |
+| `GET /api/jobs/:id/quality` | Báo cáo chất lượng và bằng chứng hoàn tất |
+
+Tìm kiếm/phân trang phải đọc các trang nguồn; so sánh giữ metadata theo số bản ghi. Các báo cáo được cache tối đa 4 snapshot trong một tiến trình và không tính lại khi polling lịch sử. Chưa có chỉ mục tìm kiếm database hoặc service lịch chạy khi server tắt.
+
 ## Tối ưu tác vụ và lịch sử (1.2.0)
 
 - Tạo mới và **Chạy tiếp** cùng dùng bộ điều phối tối đa **2 tác vụ** trong một tiến trình. Yêu cầu tạo mới giữ chỗ trước khi ghi file; chỗ được trả sau khi tạm dừng, hoàn tất hoặc lỗi. Khi hết chỗ, API trả HTTP **409** cùng thông báo Việt/Anh.

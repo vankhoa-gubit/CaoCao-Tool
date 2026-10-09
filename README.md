@@ -1,12 +1,14 @@
 # Cào Cào
 
-Tool chạy trên máy để nhập **URL trang web**, tự quan sát dữ liệu và cách tải tiếp, rồi lưu kết quả về thư mục dự án. Giao diện hỗ trợ tiếng Việt và tiếng Anh, có tiến độ và báo cáo khả năng cào trước khi chạy.
+Ứng dụng chạy trên máy để **lưu bài viết, tài liệu và câu hỏi vào thư viện học tập cá nhân**. Bạn có thể đọc lại, ghi chú, tìm nội dung và ôn bằng thẻ học. Các màn hình Tải nhanh, Nguồn & hàng đợi và Xem dữ liệu hỗ trợ thu thập JSON, phân trang và xuất dữ liệu.
 
 Chọn **Tiếng Việt** hoặc **English** ở thanh đầu trang để chuyển ngôn ngữ. Tiếng Việt là mặc định; lựa chọn được nhớ trên trình duyệt cho lần mở tiếp theo. Có thể chuyển ngay khi đang quét hoặc xem tác vụ. Nội dung dữ liệu nguồn, tên tác vụ và file xuất được giữ nguyên.
 
 ## Chạy tool
 
-Máy cần Node.js 22 trở lên và Chrome hoặc Edge. Trong thư mục dự án:
+Máy cần **Node.js 22.13 trở lên** và Chrome hoặc Edge. Trên Windows, nhấp đúp **start.cmd**: launcher kiểm tra Node/trình duyệt, cài dependencies bằng `npm ci` ở lần đầu nếu thiếu, rồi mở **Thư viện học tập**. Lần chuẩn bị đầu tiên cần mạng. Để kiểm tra môi trường mà chưa chạy server: `node scripts/launch.mjs --check`.
+
+Nếu dùng terminal, chạy trong thư mục dự án:
 
 ```powershell
 npm ci
@@ -16,6 +18,35 @@ npm start
 Mở địa chỉ được in trong terminal, mặc định `http://127.0.0.1:4317`. Có thể nhấp đúp `start.cmd` để mở tool. Nếu cổng bận, tool thử cổng kế tiếp. Chọn cổng riêng bằng `node src/server.mjs --port 4500`.
 
 Nếu không có Chrome/Edge, chạy `npx playwright install chromium`. Có thể chọn trình duyệt qua biến `CAOCAO_BROWSER=chrome` hoặc `msedge`.
+
+## Thư viện học tập (1.4.0)
+
+Mở tab **Thư viện học tập**, hoặc thêm `/#library` vào địa chỉ ứng dụng.
+
+1. Dán **Đường dẫn nội dung** và chọn **Bài viết**, **Tài liệu / PDF** hoặc **Câu hỏi**.
+2. Với bài viết, chọn một bài hoặc danh sách. Bấm **Xem mẫu trước khi lưu** để kiểm tra nội dung. Trang danh sách lấy liên kết cùng website trong vùng nội dung, tối đa 100 liên kết, rồi lưu nội dung từng bài.
+3. Tạo/chọn **bộ sưu tập**, chọn tải tệp nếu cần, rồi bấm lưu. Nội dung và tệp có tiến độ riêng. Có thể tạm dừng/chạy tiếp lượt lưu và thử lại tệp lỗi trong phần đọc.
+4. Mở nội dung trong thư viện để đọc, sửa tên, thêm thẻ hoặc ghi chú. Tìm theo tiêu đề, nội dung, thẻ, ghi chú; lọc theo loại và bộ sưu tập. Xóa bộ sưu tập giữ các nội dung trong thư viện.
+5. Với câu hỏi, chuyển sang **Thẻ học**, thử trả lời rồi mở đáp án. Phím trái/phải chuyển câu; phím cách mở/ẩn đáp án khi đang ở vùng thẻ. Câu hỏi chưa có đáp án từ nguồn được ghi rõ.
+
+Các nút bài viết, danh sách, PDF và câu hỏi mẫu dùng HTTP thật do ứng dụng phục vụ. Bạn cũng có thể mở **Thêm câu hỏi từ lượt tải đã có**, chọn lượt tải và kiểm tra ánh xạ câu hỏi/lựa chọn/đáp án/ID. Mẫu cập nhật khi đổi trường. Giá trị đáp án `0`, `false` và câu hỏi thiếu đáp án được giữ đúng.
+
+Nội dung chữ, nguồn và ngày lưu được giữ trong `data/library/library.sqlite`. Tệp đã tải nằm trong `data/library/files/`; phần đọc dùng đường dẫn cục bộ. Sau khi đã lưu, đọc bài và mở tệp hoàn tất không cần tải lại nguồn; server cục bộ vẫn cần chạy. Phần đọc hiển thị chữ, không chạy HTML của website nguồn.
+
+**Xuất nội dung:** HTML, Markdown, CSV theo nội dung đang lọc hoặc từng mục; PDF theo bộ đang lọc/từng mục. HTML được escape và CSV bảo vệ giá trị có thể bị spreadsheet hiểu thành công thức. PDF giới hạn **500 mục / 10 MB HTML**; với bộ lớn, dùng định dạng streaming. Tệp đính kèm được lưu riêng, không nhúng vào các file xuất này.
+
+### Phục hồi, bộ nhớ và băng thông
+
+- Trang cào được ghi vào file tạm, flush rồi đổi tên; SHA-256 kiểm tra nội dung trang mới khi khôi phục, đọc/xuất dữ liệu. Checkpoint metadata hợp lệ vẫn giúp khởi động nhanh; chạy tiếp xác minh lại các trang đã lưu. File trang cũ không có checksum vẫn đọc được.
+- Loại trùng dùng chỉ mục SQLite trên đĩa; sau lượt chạy giải phóng kết nối và dữ liệu tra cứu. Bảng/tìm kiếm dùng chỉ mục dẫn tới trang gốc; so sánh dùng join SQLite và chỉ đưa trang kết quả đang xem vào RAM. Chỉ mục phụ dùng WAL/NORMAL với ngân sách cache 64 MiB/kết nối chỉ mục và có thể dựng lại từ các trang nguồn; trang gốc, checkpoint, hàng đợi tệp và thư viện vẫn dùng flush/FULL.
+- URL tệp được đưa vào hàng đợi bền vững **sau khi trang/cursor đã commit**. Tệp lỗi không làm mất bản ghi. API `POST /api/jobs/files/retry` với body `{"jobId":"mã lượt tải"}` thử lại tệp riêng; lỗi URL không hợp lệ vẫn được giữ trong báo cáo.
+- Thư viện dùng giao dịch SQLite để lưu nội dung và cursor nhập cùng nhau. Lượt bị ngắt được khôi phục ở trạng thái tạm dừng. Tải tệp dùng `Range` / `If-Range` khi máy chủ cung cấp ETag mạnh; kiểm tra độ dài và magic PDF trước khi hoàn tất. PDF đã lưu với ETag không đổi được tái sử dụng.
+- Trình duyệt trích bài trong thư viện chặn ảnh, media và font; HTML/CSS/JavaScript/XHR vẫn chạy. Tệp/ảnh đính kèm chỉ tải khi chọn. Lịch sử JSON quan sát được giới hạn 12 response; tôn trọng `Retry-After`, dùng backoff kèm jitter.
+- Crawl, nhập nội dung, quét mẫu và xuất PDF dùng chung giới hạn **2 tác vụ trong một tiến trình**. Chạy một phiên server cho mỗi thư mục dữ liệu.
+
+Giới hạn hiện tại: bài tối đa **2 MB chữ**, mẫu ánh xạ câu hỏi tối đa **512 KB**, tối đa 30 URL tệp/ảnh mỗi bài và **100 MB/tệp thư viện**. Trích bài dựa vào cấu trúc HTML phổ biến; trang riêng, nội dung tải chậm, đăng nhập hoặc CAPTCHA có thể cần kiểm tra và chọn lại nguồn. Đọc tài liệu PDF dùng tệp gốc; tìm kiếm thư viện hiện tìm metadata/ghi chú, chưa trích chữ bên trong PDF hoặc OCR.
+
+Các đợt phát triển và issue: [LEARNING_ROADMAP.md](LEARNING_ROADMAP.md). Kết quả kiểm chứng và giới hạn số đo: [QA_REPORT.md](QA_REPORT.md).
 
 ## Dùng bằng URL
 
@@ -44,7 +75,7 @@ Hai nút dữ liệu mẫu trên màn hình chạy với trang thật do server 
 Mỗi trang/cụm được ghi thành file hoàn chỉnh trước khi cập nhật điểm chạy tiếp. Bản ghi được loại trùng bằng ID nhận diện được hoặc toàn bộ nội dung.
 
 - **API:** chạy tiếp từ trang/cursor/cụm kế tiếp đã lưu.
-- **Trình duyệt:** mở lại nguồn, đi lại các thao tác đã thực hiện và loại bản ghi đã lưu trước khi tiến tiếp. Cách này có thể chậm khi đã cuộn nhiều cụm.
+- **Trình duyệt:** với HTML chuyển trang bằng URL cùng nguồn, chạy tiếp từ URL đã lưu khi nhận diện được cách chuyển trang. Trang động/cuộn/câu hỏi chuyển nội dung mở lại nguồn, đi lại thao tác và loại bản ghi đã lưu trước khi tiến tiếp; có thể chậm khi đã cuộn nhiều cụm.
 - Khi đạt giới hạn mỗi lượt, trạng thái là **Đạt giới hạn** và có nút **Chạy tiếp**. Giới hạn bản ghi trong cấu hình được kiểm tra tại ranh giới cụm để không bỏ phần còn lại của một trang.
 - Giới hạn trình duyệt tính theo số cụm có bản ghi mới; chuyển từng câu không làm hết giới hạn 200 cụm. Giới hạn thao tác riêng `limits.maxActions` mặc định là 10.000 mỗi lượt để tránh thao tác vô hạn.
 - Tác vụ cũ từng báo hoàn tất được kiểm tra lại từ response đã lưu khi server khởi động. Nếu mới lưu một phần tổng hoặc nguồn còn `hasMore`, trạng thái đổi thành **Chưa tải đủ**; các file dữ liệu đã lưu được giữ nguyên.
@@ -119,7 +150,7 @@ Mức xác nhận:
 | `GET /api/jobs/:id/compare?base=&type=&page=&limit=` | So sánh; `type` trống hoặc `added/changed/missing` |
 | `GET /api/jobs/:id/quality` | Báo cáo chất lượng và bằng chứng hoàn tất |
 
-Tìm kiếm/phân trang phải đọc các trang nguồn; so sánh giữ metadata theo số bản ghi. Các báo cáo được cache tối đa 4 snapshot trong một tiến trình và không tính lại khi polling lịch sử. Chưa có chỉ mục tìm kiếm database hoặc service lịch chạy khi server tắt.
+Từ 1.4.0, bảng/tìm kiếm và so sánh dùng chỉ mục SQLite trên đĩa, dựng từ các trang nguồn ở lần đầu và bổ sung trang mới. Các báo cáo được cache tối đa 4 snapshot trong một tiến trình và không tính lại khi polling lịch sử. Lịch vẫn cần server đang chạy.
 
 ## Tối ưu tác vụ và lịch sử (1.2.0)
 
@@ -187,12 +218,17 @@ CLI xuất JSONL sau lượt chạy. Ctrl+C tạm dừng và giữ phần đã l
 
 ```text
 data/
+  library/library.sqlite    Nội dung, bộ sưu tập, thẻ, ghi chú và lượt nhập
+  library/files/            Tệp thư viện đã tải và phần đang tải tiếp
   sessions/                 Phiên trình duyệt theo nguồn
   scans/                    Báo cáo nhận diện và request quan sát
   jobs/<job-id>/
     config.json             Cấu hình request của tác vụ
     checkpoint.json         Tiến độ và vị trí chạy tiếp
     pages/00000001.json      Bản ghi mới, response gốc, vị trí kế tiếp
+    keys.sqlite             Chỉ mục loại trùng có thể dựng lại
+    dataset-index.sqlite    Chỉ mục bảng/tìm kiếm có thể dựng lại
+    file-queue.sqlite       Hàng đợi tải tệp theo trang đã commit
     files/                  File/ảnh đã tải thêm
     exports/data.jsonl      File được tạo khi xuất dữ liệu
 ```
@@ -203,6 +239,7 @@ Request, cookie/token và dữ liệu có thể xuất hiện trong các file c�
 
 ```powershell
 npm test
+npm run benchmark:learning
 ```
 
 Các kiểm tra dùng HTTP server và trang mẫu cục bộ, gồm phân trang, cursor, cụm, khôi phục checkpoint, xuất dữ liệu và luồng trình duyệt. Kết quả cụ thể và phạm vi đã kiểm tra nằm trong `QA_REPORT.md`.

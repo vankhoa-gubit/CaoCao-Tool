@@ -45,6 +45,13 @@ export async function readBounded(response, maxBytes) {
   return Buffer.concat(chunks);
 }
 
+export function retryDelay(retryAfter, attempt, now = Date.now(), random = Math.random) {
+  const seconds = Number(retryAfter);
+  const after = retryAfter ? (Number.isFinite(seconds) ? seconds * 1000 : Date.parse(retryAfter) - now) : 0;
+  const backoff = Math.min(60000, 300 * 2 ** attempt) + Math.floor(random() * 200);
+  return Math.max(backoff, Number.isFinite(after) ? after : 0);
+}
+
 export async function retryFetch(request, limits, signal, onRetry, consume) {
   for (let attempt = 0; ; attempt++) {
     try {
@@ -68,9 +75,7 @@ export async function retryFetch(request, limits, signal, onRetry, consume) {
         if (['TimeoutError', 'AbortError'].includes(error.name)) throw new MessageError('network.timeout');
         throw error;
       }
-      const seconds = Number(error.retryAfter);
-      const after = error.retryAfter ? (Number.isFinite(seconds) ? seconds * 1000 : Date.parse(error.retryAfter) - Date.now()) : 0;
-      const duration = Math.min(60000, Math.max(300 * 2 ** attempt, Number.isFinite(after) ? after : 0));
+      const duration = retryDelay(error.retryAfter, attempt);
       onRetry?.(attempt + 1, duration);
       await wait(duration, signal);
     }

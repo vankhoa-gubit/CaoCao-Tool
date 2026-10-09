@@ -1,6 +1,7 @@
 import { msg, decodeLegacy, MessageError, errorMessage, fields } from './messages.js';
 import { translate, translateMessage, readLanguage, saveLanguage, normalizeLanguage, localeFor, storageKey } from './i18n.js';
 import { WorkspaceUI } from './workspace.js';
+import { LearningUI } from './learning.js';
 
 const $ = id => document.getElementById(id);
 const state = { language: readLanguage(), scanId: null, scanProgress: null, report: null, jobs: [], selectedJob: null, detail: null, detailStamp: null, page: 1, pagination: { page: 1, pages: 1, total: 0 }, search: '', status: '', historyVersion: 0, running: 0, loginId: null, polling: false, connected: null, starting: false, notice: null, preview: null, copied: false };
@@ -23,6 +24,7 @@ function setLanguage(language, persist = true) {
   if (state.report) renderReport(state.report, false);
   renderJobs();
   workspace.renderLanguage();
+  learning.renderLanguage();
   $('copy-path').textContent = t(state.copied ? 'downloads.copied' : 'downloads.copy');
 }
 function renderConnection() {
@@ -282,6 +284,8 @@ $('save-login').addEventListener('click', async () => {
 for (const button of document.querySelectorAll('[data-language]')) button.addEventListener('click', () => setLanguage(button.dataset.language));
 window.addEventListener('storage', event => { if (event.key === storageKey || event.key === null) setLanguage(readLanguage(), false); });
 const workspace = new WorkspaceUI({ t, message, api, notice, getLanguage: () => state.language });
+const learning = new LearningUI({ t, notice, getLanguage: () => state.language });
+learning.tMessage = message; workspace.learning = learning;
 $('explore-job').addEventListener('click', () => workspace.guard(() => workspace.openJob(state.selectedJob)));
 $('save-config').addEventListener('click', () => workspace.guard(() => { const value = config(); return workspace.prefill(value, value.request?.url, value.kind || 'api'); }));
 $('save-analysis').addEventListener('click', () => workspace.guard(() => {
@@ -293,6 +297,7 @@ $('save-analysis').addEventListener('click', () => workspace.guard(() => {
   return workspace.prefill({ ...value, limits: { ...value.limits, maxRequests: Number($('max-requests').value) }, download: { ...value.download, enabled: $('download-files').checked } }, report.url, mode);
 }));
 setLanguage(state.language, false);
+if (location.hash === '#library') workspace.showPanel('library');
 document.addEventListener('visibilitychange', () => schedulePoll(document.hidden ? 60000 : 0));
 window.addEventListener('online', () => schedulePoll(0));
 window.addEventListener('pagehide', () => clearTimeout(pollTimer));

@@ -2,8 +2,10 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
 import { getAt } from './config.mjs';
-import { canonical, csvValue, completionEvidence } from './jobs.mjs';
+import { canonical, csvValue, completionEvidence, checkPage } from './jobs.mjs';
 import { MessageError } from './messages.mjs';
+import { DatabaseSync } from 'node:sqlite';
+import { datasetIndex, indexedRecord } from './data-index.mjs';
 
 const digest = value => createHash('sha256').update(canonical(value)).digest('hex');
 const forbidden = new Set(['__proto__', 'constructor', 'prototype']);
@@ -53,7 +55,7 @@ export class DatasetService {
     promise.catch(() => map.delete(key)); return promise;
   }
   async *pages(job, count = job.progress.pages) {
-    for (let index = 1; index <= count; index++) yield JSON.parse(await readFile(join(job.directory, 'pages', `${String(index).padStart(8, '0')}.json`), 'utf8'));
+    for (let index = 1; index <= count; index++) yield checkPage(JSON.parse(await readFile(join(job.directory, 'pages', `${String(index).padStart(8, '0')}.json`), 'utf8')));
   }
   async *records(job, count = job.progress.pages) {
     let index = 0;
@@ -62,25 +64,21 @@ export class DatasetService {
   async browse(id, input = {}) {
     const job = this.manager.get(id), query = dataQuery(input), pageCount = job.progress.pages, brief = job.summary({ detail: false });
     const available = new Set(job.config.exportFields || []), selected = query.columns;
-    let all = 0, total = 0, rows = [];
-    const search = query.search.toLocaleLowerCase();
-    for await (const entry of this.records(job, pageCount)) {
-      all++;
-      const names = entry.record && typeof entry.record === 'object' && !Array.isArray(entry.record) ? Object.keys(entry.record) : ['$'];
-      for (const name of names) if (available.size < 200 && name.length <= 200 && !name.split(/[.\[\]]/).some(part => forbidden.has(part))) available.add(name);
-      if (search && !JSON.stringify(entry.record).toLocaleLowerCase().includes(search)) continue;
-      if (total >= (query.page - 1) * query.limit && rows.length < query.limit) rows.push(entry);
-      total++;
-    }
-    const pages = Math.max(1, Math.ceil(total / query.limit)), page = Math.min(query.page, pages);
-    if (page !== query.page) return this.browse(id, { ...query, page });
-    const columns = selected || (job.config.exportFields?.length ? job.config.exportFields : [...available].slice(0, 8));
-    return { job: brief, columns, availableColumns: [...available], rows: rows.map(entry => ({ index: entry.index, values: columns.map(column => preview(valueAt(entry.record, column))) })), pagination: { page, pages, total, all, limit: query.limit }, snapshotPages: pageCount };
+    const index = await datasetIndex(job,pageCount);
+    try {
+      const search=query.search.toLocaleLowerCase(),where='page<=?'+(search?' AND instr(search,?)>0':''),params=search?[pageCount,search]:[pageCount];
+      const all=index.db.prepare('SELECT count(*) n FROM records WHERE page<=?').get(pageCount).n,total=index.db.prepare('SELECT count(*) n FROM records WHERE '+where).get(...params).n;
+      for(const row of index.db.prepare('SELECT DISTINCT name FROM fields WHERE page<=? LIMIT 200').all(pageCount))if(available.size<200&&row.name.length<=200&&!row.name.split(/[.\[\]]/).some(part=>forbidden.has(part)))available.add(row.name);
+      const pages=Math.max(1,Math.ceil(total/query.limit)),page=Math.min(query.page,pages),metadata=index.db.prepare('SELECT ordinal,page,offset FROM records WHERE '+where+' ORDER BY ordinal LIMIT ? OFFSET ?').all(...params,query.limit,(page-1)*query.limit),rows=[];
+      const pageCache={};for(const row of metadata)rows.push(await indexedRecord(job,row,pageCache));
+      const columns=selected||(job.config.exportFields?.length?job.config.exportFields:[...available].slice(0,8));
+      return {job:brief,columns,availableColumns:[...available],rows:rows.map(entry=>({index:entry.index,values:columns.map(column=>preview(valueAt(entry.record,column)))})),pagination:{page,pages,total,all,limit:query.limit},snapshotPages:pageCount};
+    } finally { index.db.close(); }
   }
   async record(id, index) {
     index = Number(index); if (!Number.isSafeInteger(index) || index < 0) throw new MessageError('data.query');
-    for await (const entry of this.records(this.manager.get(id))) if (entry.index === index) return { index, record: entry.record };
-    throw new MessageError('data.recordMissing');
+    const job=this.manager.get(id),cache=await datasetIndex(job);
+    try{const row=cache.db.prepare('SELECT ordinal,page,offset FROM records WHERE ordinal=? AND page<=?').get(index,job.progress.pages);if(!row)throw new MessageError('data.recordMissing');const entry=await indexedRecord(job,row);return {index,record:entry.record};}finally{cache.db.close();}
   }
   async *export(id, format, input = {}) {
     if (!['json', 'jsonl', 'csv'].includes(format)) throw new MessageError('export.format');
@@ -157,26 +155,25 @@ export class DatasetService {
     if (!['', 'added', 'changed', 'missing'].includes(type)) throw new MessageError('data.query');
     const key = `${stamp(job)}:${stamp(base)}`;
     const result = await (this.compareCache.get(key) || this.cache(this.compareCache, key, this.computeCompare(snapshot(job), snapshot(base))));
-    const changes = result.changes.filter(row => !type || row.type === type), pages = Math.max(1, Math.ceil(changes.length / limit)), page = Math.min(requestedPage, pages);
-    const { changes: ignored, ...summary } = result;
-    return { ...summary, rows: changes.slice((page - 1) * limit, page * limit), pagination: { page, pages, total: changes.length, limit } };
+    const db=new DatabaseSync(result.dbPath,{readOnly:true});
+    try{const where=type?' WHERE type=?':'',params=type?[type]:[],total=db.prepare('SELECT count(*) n FROM changes'+where).get(...params).n,pages=Math.max(1,Math.ceil(total/limit)),page=Math.min(requestedPage,pages),rows=db.prepare('SELECT type,key,currentIndex,baseIndex FROM changes'+where+" ORDER BY CASE WHEN type='missing' THEN 1 ELSE 0 END,coalesce(currentIndex,baseIndex) LIMIT ? OFFSET ?").all(...params,limit,(page-1)*limit).map(row=>({...row,key:JSON.parse(row.key)})),{dbPath,...summary}=result;return {...summary,rows,pagination:{page,pages,total,limit}};}finally{db.close();}
   }
   async computeCompare(job, base) {
-    const before = new Map(), changes = [], counts = { added: 0, changed: 0, missing: 0, unchanged: 0 };
-    const identity = entry => entry.key || digest(job.config.extract.uniqueKey ? [job.config.extract.uniqueKey, valueAt(entry.record, job.config.extract.uniqueKey)] : entry.record);
-    const label = entry => preview(job.config.extract.uniqueKey && job.config.extract.uniqueKey !== '_key' ? valueAt(entry.record, job.config.extract.uniqueKey) : entry.key || digest(entry.record));
-    for await (const entry of this.records(base)) before.set(identity(entry), { hash: digest(entry.record), index: entry.index, key: label(entry) });
-    for await (const entry of this.records(job)) {
-      const key = identity(entry), old = before.get(key);
-      if (!old) { counts.added++; changes.push({ type: 'added', key: label(entry), currentIndex: entry.index, baseIndex: null }); }
-      else {
-        before.delete(key);
-        if (old.hash === digest(entry.record)) counts.unchanged++;
-        else { counts.changed++; changes.push({ type: 'changed', key: label(entry), currentIndex: entry.index, baseIndex: old.index }); }
-      }
-    }
-    for (const entry of before.values()) { counts.missing++; changes.push({ type: 'missing', key: entry.key, currentIndex: null, baseIndex: entry.index }); }
+    const current=await datasetIndex(job),baseline=await datasetIndex(base),dbPath=join(job.directory,'compare-'+digest([stamp(job),stamp(base)]).slice(0,24)+'.sqlite');current.db.close();baseline.db.close();
+    const db=new DatabaseSync(dbPath);let counts;
+    try{
+      db.exec('PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA cache_size=-16384; PRAGMA busy_timeout=5000;');
+      db.prepare('ATTACH DATABASE ? AS current').run(current.path);db.prepare('ATTACH DATABASE ? AS baseline').run(baseline.path);
+      db.exec('PRAGMA current.cache_size=-32768; PRAGMA baseline.cache_size=-32768;');
+      db.exec('CREATE TABLE IF NOT EXISTS changes(type TEXT,key TEXT,currentIndex INTEGER,baseIndex INTEGER); DELETE FROM changes; BEGIN IMMEDIATE;');
+      db.prepare("INSERT INTO changes SELECT 'added',c.label,c.ordinal,NULL FROM current.records c LEFT JOIN baseline.records b ON b.key=c.key AND b.page<=? WHERE c.page<=? AND b.key IS NULL").run(base.progress.pages,job.progress.pages);
+      db.prepare("INSERT INTO changes SELECT 'changed',c.label,c.ordinal,b.ordinal FROM current.records c JOIN baseline.records b ON b.key=c.key WHERE c.page<=? AND b.page<=? AND c.hash!=b.hash").run(job.progress.pages,base.progress.pages);
+      db.prepare("INSERT INTO changes SELECT 'missing',b.label,NULL,b.ordinal FROM baseline.records b LEFT JOIN current.records c ON c.key=b.key AND c.page<=? WHERE b.page<=? AND c.key IS NULL").run(job.progress.pages,base.progress.pages);
+      counts={added:0,changed:0,missing:0,unchanged:db.prepare('SELECT count(*) n FROM current.records c JOIN baseline.records b ON b.key=c.key WHERE c.page<=? AND b.page<=? AND c.hash=b.hash').get(job.progress.pages,base.progress.pages).n};
+      for(const row of db.prepare('SELECT type,count(*) n FROM changes GROUP BY type').all())counts[row.type]=row.n;
+      db.exec('COMMIT');
+    }finally{db.close();}
     const [currentQuality, baseQuality] = await Promise.all([this.rawQuality(job), this.rawQuality(base)]);
-    return { jobId: job.id, baseId: base.id, counts, missingConfirmed: currentQuality.completeness.confirmed && baseQuality.completeness.confirmed, stableIdentity: Boolean(job.config.extract.uniqueKey && job.config.extract.uniqueKey !== '_key'), changes };
+    return { jobId: job.id, baseId: base.id, counts, missingConfirmed: currentQuality.completeness.confirmed && baseQuality.completeness.confirmed, stableIdentity: Boolean(job.config.extract.uniqueKey && job.config.extract.uniqueKey !== '_key'), dbPath };
   }
 }

@@ -16,6 +16,9 @@ import { fetchJson } from './net.mjs';
 import { handleDemo } from './demo.mjs';
 import { SourceWorkspace } from './workspace.mjs';
 import { DatasetService } from './datasets.mjs';
+import { LearningLibrary } from './library.mjs';
+import { libraryRoute } from './library-routes.mjs';
+import { handleLearningDemo } from './learning-demo.mjs';
 
 export const projectRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 
@@ -32,7 +35,9 @@ export async function createApp({ dataDirectory = join(projectRoot, 'data'), ses
   const scans = new Map();
   const workspace = await new SourceWorkspace(dataDirectory, manager, analyze || ((url, signal) => scanWebsite(url, sessions, () => {}, signal, scanOptions)), workspaceOptions).init();
   const datasets = new DatasetService(manager);
+  const library = await new LearningLibrary(join(dataDirectory, 'library'), manager, datasets, sessions, { scanOptions }).init();
   const staticFiles = { '/': ['index.html', 'text/html; charset=utf-8'], '/app.js': ['app.js', 'text/javascript; charset=utf-8'], '/workspace.js': ['workspace.js', 'text/javascript; charset=utf-8'], '/workspace-i18n.js': ['workspace-i18n.js', 'text/javascript; charset=utf-8'], '/i18n.js': ['i18n.js', 'text/javascript; charset=utf-8'], '/messages.js': ['messages.js', 'text/javascript; charset=utf-8'], '/style.css': ['style.css', 'text/css; charset=utf-8'] };
+  Object.assign(staticFiles, { '/learning.js': ['learning.js','text/javascript; charset=utf-8'], '/learning-i18n.js': ['learning-i18n.js','text/javascript; charset=utf-8'], '/learning.css': ['learning.css','text/css; charset=utf-8'] });
   const server = http.createServer(async (request, response) => {
     const json = (value, status = 200) => { response.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }); response.end(JSON.stringify(value)); };
     try {
@@ -44,18 +49,20 @@ export async function createApp({ dataDirectory = join(projectRoot, 'data'), ses
       response.setHeader('X-Content-Type-Options', 'nosniff');
       response.setHeader('Referrer-Policy', 'no-referrer');
       const url = new URL(request.url, origin), pathname = url.pathname;
+      if (await libraryRoute(request, response, url, library, bodyJson, json)) return;
+      if (pathname === '/api/jobs/files/retry' && request.method === 'POST') { const input = await bodyJson(request); json(manager.get(input.jobId).retryFiles()); return; }
       if (request.method === 'GET' && staticFiles[pathname]) {
         const [file, mime] = staticFiles[pathname];
         response.writeHead(200, { 'Content-Type': mime, 'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'", 'Cache-Control': 'no-cache' });
         response.end(await readFile(join(projectRoot, 'public', file))); return;
       }
-      const demo = pathname.startsWith('/demo/') && handleDemo(url, origin);
-      if (demo && request.method === 'GET') {
+      const demo = pathname.startsWith('/demo/') && (handleLearningDemo(url, origin) || handleDemo(url, origin));
+      if (demo && ['GET','HEAD'].includes(request.method)) {
         if (demo.json) json(demo.json, demo.status || 200);
-        else { response.writeHead(demo.status || 200, { 'Content-Type': demo.html ? 'text/html; charset=utf-8' : demo.mime }); response.end(demo.html || demo.text); }
+        else { response.writeHead(demo.status || 200, { 'Content-Type': demo.html ? 'text/html; charset=utf-8' : demo.mime, ...(demo.buffer ? {'Content-Length':demo.buffer.length,'ETag':'"learning-guide-v1"'} : {}) }); response.end(request.method === 'HEAD' ? undefined : demo.buffer || demo.html || demo.text); }
         return;
       }
-      if (request.method === 'GET' && pathname === '/api/health') { json({ ok: true, outputPath: dataDirectory, node: process.version, version: '1.3.0', features: ['deferred-batches', 'archive-import', 'offset-origin', 'prefix-recovery', 'job-admission', 'paged-history', 'lazy-restore', 'message-codes', 'source-profiles', 'queue', 'scheduled-runs', 'data-explorer', 'run-comparison', 'quality-reports'] }); return; }
+      if (request.method === 'GET' && pathname === '/api/health') { json({ ok: true, outputPath: dataDirectory, node: process.version, version: '1.4.0', features: ['deferred-batches', 'archive-import', 'offset-origin', 'prefix-recovery', 'job-admission', 'paged-history', 'lazy-restore', 'message-codes', 'source-profiles', 'queue', 'scheduled-runs', 'data-explorer', 'run-comparison', 'quality-reports','learning-library','offline-reader','question-cards','sqlite-key-index','file-queue','page-checksums'] }); return; }
       if (request.method === 'GET' && pathname === '/api/jobs') {
         json(url.search ? { ...manager.list(Object.fromEntries(url.searchParams)), activity: { running: [...manager.jobs.values()].filter(job => job.promise).length, pending: manager.slots.size } } : { jobs: manager.list() }); return;
       }
@@ -151,13 +158,13 @@ export async function createApp({ dataDirectory = join(projectRoot, 'data'), ses
       if (request.method === 'POST' && pathname === '/api/browser/save') { const input = await bodyJson(request); await sessions.saveLogin(input.id); json({ saved: true }); return; }
       json(fields(msg('route.notFound'), 'error'), 404);
     } catch (error) {
-      if (!response.headersSent) json(fields(errorMessage(error), 'error'), ['source.notFound', 'job.notFound', 'queue.notFound', 'data.recordMissing'].includes(error.messageData?.code) ? 404 : ['job.capacity', 'source.inUse', 'queue.retry', 'queue.cancel'].includes(error.messageData?.code) ? 409 : 400);
+      if (!response.headersSent) json(fields(errorMessage(error), 'error'), ['source.notFound', 'job.notFound', 'queue.notFound', 'data.recordMissing','learning.itemMissing','learning.collectionMissing','learning.fileMissing'].includes(error.messageData?.code) ? 404 : ['job.capacity', 'source.inUse', 'queue.retry', 'queue.cancel','learning.importBusy'].includes(error.messageData?.code) ? 409 : 400);
       else response.destroy();
     }
   });
-  server.once('listening', () => workspace.start());
-  const close = async () => { for (const scan of scans.values()) scan.controller.abort(); await workspace.close(); await Promise.allSettled([...scans.values()].map(scan => scan.promise)); await manager.close(); await new Promise(resolve => server.close(resolve)); };
-  return { server, manager, sessions, scans, workspace, datasets, close };
+  server.once('listening', () => { workspace.start(); library.start(); });
+  const close = async () => { for (const scan of scans.values()) scan.controller.abort(); await library.close(); await workspace.close(); await Promise.allSettled([...scans.values()].map(scan => scan.promise)); await manager.close(); await new Promise(resolve => server.close(resolve)); };
+  return { server, manager, sessions, scans, workspace, datasets, library, close };
 }
 
 export async function listen(app, preferredPort = 4317) {
@@ -171,15 +178,19 @@ export async function listen(app, preferredPort = 4317) {
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+  let app;
+  try {
   const index = process.argv.indexOf('--port'), port = index >= 0 ? Number(process.argv[index + 1]) : Number(process.env.PORT || 4317);
   if (!Number.isInteger(port) || port < 0 || port > 65525) throw new MessageError('port.invalid');
-  const app = await createApp(); const url = await listen(app, port);
+  app = await createApp(); const url = await listen(app, port);
   console.log(`Cào Cào đang chạy tại ${url}\nDữ liệu lưu tại ${join(projectRoot, 'data')}\nNhấn Ctrl+C để dừng và lưu các tác vụ.`);
   if (process.argv.includes('--open')) {
-    const child = process.platform === 'win32' ? spawn('cmd.exe', ['/c', 'start', '', url], { windowsHide: true, detached: true, stdio: 'ignore' }) : spawn('xdg-open', [url], { detached: true, stdio: 'ignore' });
+    const startUrl = url + '/#library';
+    const child = process.platform === 'win32' ? spawn('cmd.exe', ['/c', 'start', '', startUrl], { windowsHide: true, detached: true, stdio: 'ignore' }) : spawn('xdg-open', [startUrl], { detached: true, stdio: 'ignore' });
     child.on('error', () => {}); child.unref();
   }
   let closing = false;
   const shutdown = async () => { if (closing) return; closing = true; await app.close(); process.exit(0); };
   process.on('SIGINT', shutdown); process.on('SIGTERM', shutdown);
+  } catch (error) { console.error('Chưa mở được Cào Cào: ' + error.message);await app?.close();process.exitCode = 1; }
 }

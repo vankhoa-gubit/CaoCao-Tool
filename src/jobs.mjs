@@ -6,6 +6,8 @@ import { normalizeConfig, initialState, buildRequest, nextState, getAt, httpUrl,
 import { fetchJson, retryFetch, wait } from './net.mjs';
 import { runBrowser } from './browser.mjs';
 import { collectionMetadata } from './detect.mjs';
+import { DiskKeyIndex } from './key-index.mjs';
+import { FileQueue } from './file-queue.mjs';
 
 export function canonical(value) {
   if (value === null || typeof value !== 'object') return JSON.stringify(value);
@@ -24,8 +26,17 @@ function smallSample(value, depth = 0) {
 
 export async function atomicJson(target, value) {
   const temp = `${target}.${randomUUID()}.tmp`;
-  await writeFile(temp, JSON.stringify(value, null, 2), 'utf8');
+  await writeFile(temp, JSON.stringify(value, null, 2), { encoding: 'utf8', flush: true });
   await rename(temp, target);
+}
+
+export function sealPage(page) {
+  const { integrity, ...payload } = page;
+  return { ...payload, integrity: hash(canonical(payload)) };
+}
+export function checkPage(page) {
+  if (page.integrity && sealPage(page).integrity !== page.integrity) throw new MessageError('checkpoint.pages');
+  return page;
 }
 
 async function pageFiles(directory) {
@@ -38,10 +49,10 @@ function itemKey(item, uniqueKey) {
   return hash(uniqueKey ? canonical([uniqueKey, key]) : canonical(item));
 }
 
-async function downloadFiles(job, items, signal) {
+async function downloadFiles(job, items, signal, suppliedUrls) {
   if (!job.config.download.enabled) return { files: [], errors: [] };
   const errors = [];
-  const urls = new Set();
+  const urls = new Set(suppliedUrls || []);
   for (const item of items) for (const path of job.config.download.paths) {
     const value = getAt(item, path);
     for (const candidate of Array.isArray(value) ? value.flat(2) : [value]) {
@@ -68,6 +79,7 @@ async function downloadFiles(job, items, signal) {
           if (bytes > job.config.download.maxFileBytes) throw new MessageError('download.tooLarge');
           await handle.writeFile(chunk);
         }
+        await handle.sync();
       } finally { await handle.close(); }
       await rename(temp, target);
     }); } catch (error) {
@@ -107,10 +119,27 @@ export class Job {
     this.hasMore = snapshot?.hasMore;
     this.completionEvidence = snapshot?.completionEvidence || null;
     this.progress.fileErrors ??= 0;
-    this.keys = new Set(); this.requestHashes = new Set(); this.responseHashes = [];
+    this.keys = new DiskKeyIndex(join(this.directory, 'keys.sqlite')); this.requestHashes = new Set(); this.responseHashes = [];
     this.keysLoaded = false;
     this.samples = snapshot?.samples || []; this.promise = null; this.controller = null;
     this.exportTasks = new Map();
+    this.metadataWrites = Promise.resolve();
+    this.fileBase = { files: 0, errors: 0 };
+    this.fileQueue = new FileQueue(this.directory, async (index, urls, signal) => {
+      const result = await downloadFiles(this, [], signal, urls);
+      const path = join(this.directory, 'pages', `${String(index).padStart(8, '0')}.json`);
+      const page = checkPage(JSON.parse(await readFile(path, 'utf8')));
+      await atomicJson(path, sealPage({ ...page, files: result.files, fileErrors: [...(page.fileDiscoveryErrors || []), ...result.errors] }));
+      return result;
+    }, async counts => {
+      this.syncFileCounts(counts);
+      await this.persist();
+    });
+  }
+  syncFileCounts(counts = this.fileQueue.counts()) {
+    this.progress.files = this.fileBase.files + (counts?.files || 0);
+    this.progress.fileErrors = this.fileBase.errors + (counts?.errors || 0);
+    this.progress.filePending = counts?.pending || 0;
   }
   log(message) { this.logs.push({ at: new Date().toISOString(), ...fields(message) }); if (this.logs.length > 100) this.logs.shift(); }
   setStage(message) { Object.assign(this.progress, fields(message, 'stage')); }
@@ -119,9 +148,12 @@ export class Job {
     return { id: this.id, sourceId: this.config.sourceId || null, queueId: this.config.queueId || null, name: this.config.name, kind: this.config.kind || 'api', status: this.status, createdAt: this.createdAt, updatedAt: this.updatedAt || this.createdAt, error: this.error, errorMessage: this.errorMessage, progress: { ...this.progress, elapsedMs: this.progress.elapsedMs + (this.startedAt ? Date.now() - this.startedAt : 0) }, ...(detail ? { logs: this.logs, samples: smallSample(this.samples), outputPath: this.directory } : {}) };
   }
   async persist() {
+    const operation = this.metadataWrites.then(async () => {
     this.updatedAt = new Date().toISOString();
     const metadata = JSON.parse(JSON.stringify({ ...this.summary(), state: this.state, checkpointPage: this.progress.pages, progress: this.progress, hasMore: this.hasMore, completionEvidence: this.completionEvidence, formatVersion: 2, configHash: this.configHash }));
     await atomicJson(join(this.directory, 'checkpoint.json'), { ...metadata, metadataHash: hash(canonical(metadata)) });
+    });
+    this.metadataWrites = operation.catch(() => {}); return operation;
   }
   async restore(snapshot) {
     const files = await pageFiles(this.directory);
@@ -134,7 +166,7 @@ export class Job {
     let last;
     let count = 0, fileCount = 0, fileErrors = 0, declaredTotal = null, hasMore, evidence = null;
     for (const file of trusted ? [] : files) {
-      const page = JSON.parse(await readFile(join(this.directory, 'pages', file), 'utf8'));
+      const page = checkPage(JSON.parse(await readFile(join(this.directory, 'pages', file), 'utf8')));
       last = page;
       count += page.items.length; fileCount += page.files?.length || 0;
       fileErrors += page.fileErrors?.length || 0;
@@ -169,20 +201,24 @@ export class Job {
   }
   async hydrateKeys(signal) {
     if (this.keysLoaded) return;
-    this.keys.clear(); this.requestHashes.clear(); this.responseHashes = [];
+    this.keys.open(); this.keys.clear(); this.requestHashes.clear(); this.responseHashes = [];
+    this.fileBase = { files: 0, errors: 0 };
     const files = await pageFiles(this.directory);
     if (files.length !== this.progress.pages || !files.every((file, index) => file === `${String(index + 1).padStart(8, '0')}.json`)) throw new MessageError('checkpoint.pages');
     for (const file of files) {
       signal?.throwIfAborted();
-      const page = JSON.parse(await readFile(join(this.directory, 'pages', file), 'utf8'));
-      for (const key of page.keys) this.keys.add(key);
+      const page = checkPage(JSON.parse(await readFile(join(this.directory, 'pages', file), 'utf8')));
+      this.keys.addMany(page.keys);
+      if (Object.hasOwn(page, 'fileUrls')) this.fileBase.errors += page.fileDiscoveryErrors?.length || 0;
+      else { this.fileBase.files += page.files?.length || 0; this.fileBase.errors += page.fileErrors?.length || 0; }
+      this.fileQueue.enqueue(page.index, page.fileUrls || []);
       if (page.requestHash) this.requestHashes.add(page.requestHash);
       if (page.responseHash) this.responseHashes = [...this.responseHashes.slice(-1), page.responseHash];
     }
-    signal?.throwIfAborted(); this.keysLoaded = true;
+    signal?.throwIfAborted(); this.syncFileCounts(); this.keysLoaded = true;
   }
   releaseKeys() {
-    this.keys.clear(); this.requestHashes.clear(); this.responseHashes = []; this.keysLoaded = false;
+    this.keys.close(); this.requestHashes.clear(); this.responseHashes = []; this.keysLoaded = false;
   }
   incompleteMessage() {
     const count = String(this.progress.items) + (this.progress.total != null ? `/${this.progress.total}` : '');
@@ -211,21 +247,32 @@ export class Job {
       this.state = next; this.progress.position = position; this.progress.duplicates += duplicates;
       await this.persist(); return 0;
     }
-    const { files, errors: fileErrors } = await downloadFiles(this, items, this.controller.signal);
+    const files = [], fileErrors = [], fileUrls = new Set();
+    if (this.config.download.enabled) for (const item of items) for (const path of this.config.download.paths) {
+      const value = getAt(item, path);
+      for (const candidate of Array.isArray(value) ? value.flat(2) : [value]) if (typeof candidate === 'string' && /^(https?:\/\/|\/)/.test(candidate)) {
+        try { fileUrls.add(httpUrl(candidate, this.config.request.url).href); } catch (error) { fileErrors.push({ url: candidate, errorMessage: errorMessage(error) }); }
+      }
+    }
     const index = this.progress.pages + 1;
     const evidence = this.config.kind === 'browser' ? this.completionEvidence : completionEvidence(this.config, response, next);
-    const page = { index, at: new Date().toISOString(), position, items, keys, duplicates, files, fileErrors, completionEvidence: evidence, nextState: next, ...details, ...(this.config.saveRaw ? { response } : {}) };
+    const page = { index, at: new Date().toISOString(), position, items, keys, duplicates, files, fileErrors, fileDiscoveryErrors: fileErrors, fileUrls: [...fileUrls], completionEvidence: evidence, nextState: next, ...details, ...(this.config.saveRaw ? { response } : {}) };
     // A complete page is the durable transaction. Resume can reconstruct a stale checkpoint from it.
-    await atomicJson(join(this.directory, 'pages', `${String(index).padStart(8, '0')}.json`), page);
-    for (const key of keys) this.keys.add(key);
+    await atomicJson(join(this.directory, 'pages', `${String(index).padStart(8, '0')}.json`), sealPage(page));
+    this.keys.addMany(keys);
     if (details.requestHash) this.requestHashes.add(details.requestHash);
     if (details.responseHash) this.responseHashes = [...this.responseHashes.slice(-1), details.responseHash];
     this.state = next; this.progress.pages = index; this.progress.items += items.length;
     this.progress.duplicates += duplicates; this.progress.files += files.length; this.progress.position = position;
     this.progress.fileErrors += fileErrors.length;
+    this.fileBase.errors += fileErrors.length;
     if (evidence) this.completionEvidence = evidence;
     this.samples = items.slice(-3); this.log(msg('job.saved', { batch: index, count: items.length, duplicates }));
-    await this.persist(); return items.length;
+    await this.persist();
+    this.fileQueue.enqueue(index, [...fileUrls]);
+    this.progress.filePending = this.fileQueue.counts()?.pending || 0;
+    this.fileQueue.kick(this.controller.signal);
+    return items.length;
   }
   async runApi(signal) {
     let runPages = 0, runItems = 0;
@@ -251,11 +298,11 @@ export class Job {
     }
     return 'end';
   }
-  start(reservation) {
+  start(reservation, options) {
     if (this.promise) throw new MessageError('job.running');
     if (this.status === 'completed') throw new MessageError('job.completed');
     if (this.pageSequenceValid === false) throw new MessageError('checkpoint.pages');
-    this.manager.admit(this, reservation);
+    this.manager.admit(this, reservation, options);
     const previousStatus = this.status;
     this.controller = new AbortController(); this.status = 'running'; this.setError(null); this.startedAt = Date.now();
     this.log(msg('job.started'));
@@ -270,7 +317,9 @@ export class Job {
           } else { this.requestHashes.clear(); this.responseHashes = []; }
         }
         await this.persist();
+        this.fileQueue.kick(this.controller.signal);
         const reason = this.config.kind === 'browser' ? await runBrowser(this, this.manager.sessions, this.controller.signal) : await this.runApi(this.controller.signal);
+        await this.fileQueue.finish(this.controller.signal);
         this.status = reason === 'limited' ? 'limited' : reason === 'incomplete' ? 'incomplete' : 'completed';
         if (this.status === 'completed') this.state = null;
         if (this.status === 'incomplete') this.setError(this.incompleteMessage());
@@ -280,6 +329,8 @@ export class Job {
         if (this.controller.signal.aborted) { this.status = 'paused'; this.setStage(msg('job.pausedStage')); this.log(this.progress.stageMessage); }
         else { this.status = 'failed'; this.setError(errorMessage(error)); this.setStage(msg('job.failedStage')); this.log(this.errorMessage); }
       } finally {
+        this.controller.abort();
+        await this.fileQueue.stop();
         this.progress.elapsedMs += Date.now() - this.startedAt; this.startedAt = null;
         try { await this.persist(); }
         catch (error) { this.status = 'failed'; this.setError(msg('checkpoint.failed', { error: errorMessage(error) })); }
@@ -288,10 +339,20 @@ export class Job {
     })();
     return this.summary();
   }
+
+  retryFiles() {
+    if (this.promise) throw new MessageError('job.running');
+    this.manager.admit(this); this.controller = new AbortController();
+    this.promise = (async () => {
+      try { await this.hydrateKeys(this.controller.signal); this.fileQueue.retry(); await this.fileQueue.finish(this.controller.signal); await this.persist(); }
+      finally { this.controller.abort(); await this.fileQueue.stop(); this.releaseKeys(); this.promise = null; this.manager.release(this); }
+    })();
+    this.promise.catch(error => this.setError(errorMessage(error))); return this.summary();
+  }
   async pause() { if (this.promise) { this.controller.abort(); await this.promise; } return this.summary(); }
   async *records(files) {
     files ??= await pageFiles(this.directory);
-    for (const file of files) { const page = JSON.parse(await readFile(join(this.directory, 'pages', file), 'utf8')); yield* page.items; }
+    for (const file of files) { const page = checkPage(JSON.parse(await readFile(join(this.directory, 'pages', file), 'utf8'))); yield* page.items; }
   }
   async export(format) {
     if (!['json', 'jsonl', 'csv'].includes(format)) throw new MessageError('export.format');
@@ -336,10 +397,13 @@ export class JobManager {
     this.maxRunning = maxRunning; this.restoreMode = restoreMode;
     this.slots = new Set(); this.pending = new Set(); this.closing = false;
   }
-  admit(owner, reservation) {
+  admit(owner, reservation, { retainReservation = false } = {}) {
     if (this.closing) throw new MessageError('manager.closed');
-    if (reservation && this.slots.has(reservation)) this.slots.delete(reservation);
-    else if (this.slots.size >= this.maxRunning) throw new MessageError('job.capacity', { limit: this.maxRunning });
+    if (reservation && this.slots.has(reservation)) {
+      // A multi-stage import owns its slot until both crawl and import finish.
+      if (retainReservation) return;
+      this.slots.delete(reservation);
+    } else if (this.slots.size >= this.maxRunning) throw new MessageError('job.capacity', { limit: this.maxRunning });
     this.slots.add(owner);
   }
   release(owner) { this.slots.delete(owner); }

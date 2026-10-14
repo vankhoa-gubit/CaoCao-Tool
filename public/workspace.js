@@ -65,9 +65,11 @@ export class WorkspaceUI {
   status(value) { return this.t((['queued', 'scanning', 'starting', 'cancelled'].includes(value) ? 'queue.' : 'status.') + value); }
   async showPanel(panel) {
     this.panel = panel;
-    for (const name of ['quick', 'sources', 'data']) $(name + '-panel').hidden = panel !== name;
+    for (const name of ['quick', 'sources', 'data', 'library']) $(name + '-panel').hidden = panel !== name;
     for (const node of document.querySelectorAll('[data-panel]')) node.setAttribute('aria-pressed', String(node.dataset.panel === panel));
     clearTimeout(this.timer);
+    clearTimeout(this.learning?.timer);
+    if (panel === 'library') await this.guard(() => this.learning.show());
     if (panel === 'sources') await this.guard(() => this.refresh());
     if (panel === 'data') await this.guard(async () => { await this.loadSources(); await this.loadPicker(); });
   }

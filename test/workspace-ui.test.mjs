@@ -146,8 +146,10 @@ test('Quick analysis pre-fills a reusable source profile and the saved profile c
 
 test('URLs without a saved profile are analyzed and collected through the real queue', async () => {
   const page = ui.page; await page.locator('[data-panel="sources"]').click();
-  await page.locator('#queue-profile').selectOption(''); await page.locator('#queue-urls').fill(origin + '/demo/infinite'); await page.locator('#queue-add').click();
-  const queued = app.workspace.store.queue.at(-1);
+  await page.locator('#queue-profile').selectOption(''); await page.locator('#queue-urls').fill(origin + '/demo/infinite');
+  const created = page.waitForResponse(response => response.url() === origin + '/api/queue' && response.request().method() === 'POST');
+  await page.locator('#queue-add').click(); const response = await created; assert.ok(response.ok()); assert.equal(response.request().postDataJSON().sourceId, undefined);
+  const { queue: [queued] } = await response.json();
   await until(() => app.workspace.item(queued.id), value => value.status === 'completed');
   const job = app.manager.get(app.workspace.item(queued.id).jobId); assert.equal(job.config.kind, 'api'); assert.equal(job.progress.items, 18); assert.equal(job.config.sourceId, undefined);
   assert.deepEqual(errors, []);

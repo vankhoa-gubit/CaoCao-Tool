@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title data-i18n="app.title">Cào Cào · Tải dữ liệu về máy</title>
   <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/learning.css">
   <script type="module" src="/app.js"></script>
 </head>
 <body>
@@ -24,11 +25,49 @@
 
   <div id="notice" class="global-notice" role="alert" hidden></div>
   <nav class="workspace-nav" aria-label="Khu vực làm việc" data-i18n-aria-label="workspace.nav">
+    <button type="button" data-panel="library" aria-pressed="false" data-i18n="learn.nav">Thư viện học tập</button>
     <button type="button" data-panel="quick" aria-pressed="true" data-i18n="workspace.quick">Tải nhanh</button>
     <button type="button" data-panel="sources" aria-pressed="false" data-i18n="workspace.sources">Nguồn &amp; hàng đợi</button>
     <button type="button" data-panel="data" aria-pressed="false" data-i18n="workspace.data">Xem dữ liệu</button>
   </nav>
   <main>
+  <section id="library-panel" class="learning-panel" hidden aria-labelledby="learning-title">
+    <header class="learning-intro"><h1 id="learning-title" data-i18n="learn.title">Giữ lại điều bạn muốn học.</h1><p data-i18n="learn.intro">Lưu bài viết, tài liệu và câu hỏi vào thư viện trên máy. Mở lại, ghi chú và học theo cách của bạn.</p></header>
+    <div class="learning-layout">
+      <aside class="learning-add" aria-labelledby="learning-add-title">
+        <h2 id="learning-add-title" data-i18n="learn.add">Thêm nội dung</h2>
+        <form id="learning-form">
+          <label for="learning-url" data-i18n="learn.url">Đường dẫn nội dung</label><input id="learning-url" type="url" required placeholder="https://…" autocomplete="url">
+          <label for="learning-kind" data-i18n="learn.kind">Bạn muốn lưu gì?</label><select id="learning-kind"><option value="article" data-i18n="learn.article">Bài viết</option><option value="document" data-i18n="learn.document">Tài liệu / PDF</option><option value="question" data-i18n="learn.question">Câu hỏi</option></select>
+          <div id="learning-scope-field"><label for="learning-scope" data-i18n="learn.scope">Phạm vi bài viết</label><select id="learning-scope"><option value="page" data-i18n="learn.single">Bài viết hiện tại</option><option value="list" data-i18n="learn.list">Các bài trong danh sách (tối đa 100)</option></select></div>
+          <button id="learning-preview" type="submit" class="primary" data-i18n="learn.preview">Xem mẫu trước khi lưu</button>
+        </form>
+        <div class="learning-examples"><p data-i18n="learn.samples">Thử một ví dụ</p><button type="button" data-learning-demo="article" data-i18n="learn.demoArticle">Bài viết mẫu</button><button type="button" data-learning-demo="list" data-i18n="learn.demoList">Danh sách bài viết</button><button type="button" data-learning-demo="document" data-i18n="learn.demoPdf">Tài liệu PDF</button><button type="button" data-learning-demo="question" data-i18n="learn.demoQuestions">Bộ câu hỏi</button></div>
+        <details id="learning-job-tools"><summary data-i18n="learn.jobImport">Thêm câu hỏi từ lượt tải đã có</summary><label for="learning-job" data-i18n="learn.job">Chọn lượt tải</label><select id="learning-job"></select><div class="inline-actions"><button id="learning-jobs-prev" type="button" data-i18n="learn.previous">Trước</button><button id="learning-jobs-next" type="button" data-i18n="learn.next">Sau</button><button id="learning-job-preview" type="button" class="secondary" data-i18n="learn.jobPreview">Xem mẫu câu hỏi</button></div></details>
+        <section id="learning-sample" class="learning-sample" hidden aria-live="polite"><h3 data-i18n="learn.sample">Nội dung mẫu</h3><p id="learning-sample-count" class="hint"></p><div id="learning-sample-body"></div>
+          <fieldset id="learning-mapping" hidden><legend data-i18n="learn.mapping">Chọn nội dung câu hỏi</legend><label for="learning-field-question" data-i18n="learn.promptField">Nội dung câu hỏi</label><select id="learning-field-question"></select><label for="learning-field-choices" data-i18n="learn.choicesField">Các lựa chọn</label><select id="learning-field-choices"></select><label for="learning-field-answer" data-i18n="learn.answerField">Đáp án trong nguồn</label><select id="learning-field-answer"></select><label for="learning-field-id" data-i18n="learn.idField">Mã câu hỏi</label><select id="learning-field-id"></select></fieldset>
+          <label for="learning-destination" data-i18n="learn.collection">Bộ sưu tập</label><select id="learning-destination"></select><label class="learning-check"><input id="learning-files" type="checkbox"><span data-i18n="learn.files">Tải thêm tệp và ảnh để mở lại trên máy</span></label><button id="learning-save" type="button" class="primary" data-i18n="learn.save">Lưu vào thư viện</button>
+        </section>
+        <div class="inline-actions"><button id="learning-login" type="button" class="text-button" data-i18n="learn.login">Mở trang để đăng nhập</button><button id="learning-save-login" type="button" class="text-button" hidden data-i18n="learn.saveLogin">Lưu phiên và xem lại mẫu</button></div>
+      </aside>
+      <section class="learning-shelf" aria-labelledby="learning-shelf-title"><div class="section-head"><h2 id="learning-shelf-title" data-i18n="learn.shelf">Thư viện của bạn</h2><button id="learning-refresh" type="button" class="text-button" data-i18n="learn.refresh">Đọc lại thư viện</button></div>
+        <form id="learning-collection-form" class="learning-collection-form"><label for="learning-collection-name" data-i18n="learn.collectionName">Tên bộ sưu tập</label><div class="inline-actions"><input id="learning-collection-name" maxlength="100" required><button type="submit" class="secondary" data-i18n="learn.newCollection">Tạo bộ sưu tập</button></div></form>
+        <div class="learning-filters"><div><label for="learning-search" data-i18n="learn.search">Tìm trong thư viện</label><input id="learning-search" type="search" maxlength="200" data-i18n-placeholder="learn.searchPlaceholder"></div><div><label for="learning-filter-kind" data-i18n="learn.kind">Bạn muốn lưu gì?</label><select id="learning-filter-kind"><option value="" data-i18n="learn.allKinds">Mọi loại nội dung</option><option value="article" data-i18n="learn.article">Bài viết</option><option value="document" data-i18n="learn.document">Tài liệu / PDF</option><option value="question" data-i18n="learn.question">Câu hỏi</option></select></div><div><label for="learning-filter-collection" data-i18n="learn.collection">Bộ sưu tập</label><select id="learning-filter-collection"></select></div><div><label for="learning-filter-tag" data-i18n="learn.tag">Lọc theo thẻ</label><input id="learning-filter-tag" maxlength="40"></div></div>
+        <div id="learning-collection-actions" class="inline-actions" hidden><button id="learning-collection-rename" type="button" data-i18n="learn.rename">Đổi tên</button><button id="learning-collection-delete" type="button" data-i18n="learn.removeCollection">Xóa bộ sưu tập</button></div>
+        <p id="learning-empty" class="empty-learning" data-i18n="learn.empty">Thư viện đang trống. Thêm một đường dẫn hoặc thử nội dung mẫu để bắt đầu.</p><div id="learning-items" class="learning-items"></div>
+        <nav class="history-pagination" aria-label="Library pages"><button id="learning-prev" type="button" data-i18n="learn.previous">Trước</button><span id="learning-page" aria-live="polite"></span><button id="learning-next" type="button" data-i18n="learn.next">Sau</button></nav>
+        <div class="learning-export"><span data-i18n="learn.export">Xuất nội dung đang lọc</span><a data-learning-export="html">HTML</a><a data-learning-export="md">Markdown</a><a data-learning-export="pdf">PDF</a><a data-learning-export="csv">CSV</a></div>
+        <section id="learning-runs-section" hidden><h3 data-i18n="learn.runs">Tiến độ lưu nội dung</h3><div id="learning-runs"></div></section>
+      </section>
+    </div>
+  </section>
+  <dialog id="learning-reader" class="learning-reader" aria-labelledby="learning-reader-title"><div class="section-head"><h2 id="learning-reader-title"></h2><button id="learning-close" type="button" data-i18n="learn.close">Đóng</button></div><p id="learning-reader-meta" class="hint"></p><a id="learning-reader-source" target="_blank" rel="noopener noreferrer" data-i18n="learn.source">Nguồn nội dung</a>
+    <div class="learning-reader-tabs"><button id="learning-read" type="button" aria-pressed="true" data-i18n="learn.read">Đọc nội dung</button><button id="learning-study" type="button" aria-pressed="false" data-i18n="learn.study">Học bằng thẻ</button></div><article id="learning-reader-body" class="learning-reader-body"></article>
+    <div id="learning-card-controls" class="inline-actions" hidden><button id="learning-card-prev" type="button" data-i18n="learn.previous">Trước</button><span id="learning-card-count"></span><button id="learning-reveal" type="button" data-i18n="learn.reveal">Xem đáp án</button><button id="learning-card-next" type="button" data-i18n="learn.next">Sau</button></div>
+    <section id="learning-attachments"><h3 data-i18n="learn.attachments">Tệp và ảnh</h3><div id="learning-file-list"></div><button id="learning-retry-files" type="button" data-i18n="learn.retryFiles">Thử lại tệp chưa tải được</button></section>
+    <form id="learning-note-form" class="learning-note-form"><label for="learning-reader-name" data-i18n="learn.titleLabel">Tên nội dung</label><input id="learning-reader-name" maxlength="300" required><label for="learning-reader-collection" data-i18n="learn.collection">Bộ sưu tập</label><select id="learning-reader-collection"></select><label for="learning-reader-tags" data-i18n="learn.tags">Thẻ chủ đề (ngăn bằng dấu phẩy)</label><input id="learning-reader-tags" maxlength="820"><label for="learning-reader-notes" data-i18n="learn.notes">Ghi chú của bạn</label><textarea id="learning-reader-notes" rows="4" maxlength="30000"></textarea><button type="submit" class="secondary" data-i18n="learn.saveNotes">Lưu thay đổi</button></form>
+    <div class="learning-export"><span data-i18n="learn.exportItem">Xuất nội dung này</span><a data-learning-item-export="html">HTML</a><a data-learning-item-export="md">Markdown</a><a data-learning-item-export="pdf">PDF</a><a data-learning-item-export="csv">CSV</a><button id="learning-delete" type="button" class="text-button" data-i18n="learn.delete">Xóa khỏi thư viện</button></div>
+  </dialog>
   <section id="quick-panel" class="workspace">
     <section class="setup" aria-labelledby="page-title">
       <div class="intro"><h1 id="page-title"><span data-i18n="intro.line1">Dữ liệu trên web.</span><br><span data-i18n="intro.line2">Mang về máy bạn.</span></h1><p data-i18n="intro.description">Nhập địa chỉ trang. Tool sẽ tìm nguồn dữ liệu và kiểm tra cách tải tiếp trước khi bắt đầu.</p></div>

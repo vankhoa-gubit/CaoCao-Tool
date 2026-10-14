@@ -1,16 +1,17 @@
 {
   "name": "cao-cao-local",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "private": true,
   "type": "module",
-  "description": "Tool tải dữ liệu JSON từ request API, phân trang và từng cụm về máy.",
+  "description": "Thư viện học tập cá nhân và công cụ thu thập dữ liệu về máy.",
   "engines": {
-    "node": ">=22"
+    "node": ">=22.13"
   },
   "scripts": {
     "start": "node src/server.mjs",
-    "test": "node --test test/*.test.mjs",
+    "test": "node --test --test-concurrency=2 test/*.test.mjs",
     "benchmark:startup": "node scripts/benchmark-startup.mjs",
+    "benchmark:learning": "node scripts/benchmark-learning.mjs",
     "crawl": "node src/cli.mjs"
   },
   "dependencies": {

@@ -10,7 +10,7 @@ import { fetchJson, wait } from './net.mjs';
 export class BrowserSessions {
   constructor(directory) { this.directory = directory; this.logins = new Map(); }
   statePath(url) { return join(this.directory, `${createHash('sha256').update(httpUrl(url).origin).digest('hex').slice(0, 24)}.json`); }
-  async open(url, { headless = true, signal } = {}) {
+  async open(url, { headless = true, signal, lightweight = false, acceptDownloads = false } = {}) {
     await mkdir(this.directory, { recursive: true });
     let browser;
     const channels = process.env.CAOCAO_BROWSER ? [process.env.CAOCAO_BROWSER] : process.platform === 'win32' ? ['msedge', 'chrome', undefined] : ['chrome', undefined];
@@ -21,8 +21,9 @@ export class BrowserSessions {
     if (!browser) throw new MessageError('browser.unavailable');
     let storageState;
     try { await access(this.statePath(url)); storageState = this.statePath(url); } catch { /* First visit. */ }
-    const context = await browser.newContext({ storageState, viewport: { width: 1365, height: 900 }, locale: 'vi-VN', acceptDownloads: false, serviceWorkers: 'block' });
+    const context = await browser.newContext({ storageState, viewport: { width: 1365, height: 900 }, locale: 'vi-VN', acceptDownloads, serviceWorkers: 'block' });
     const page = await context.newPage();
+    if (lightweight) await page.route('**/*', route => ['image','media','font'].includes(route.request().resourceType()) ? route.abort() : route.continue());
     page.setDefaultTimeout(10000);
     const abort = () => browser.close().catch(() => {});
     signal?.addEventListener('abort', abort, { once: true });
@@ -257,14 +258,16 @@ export async function runBrowser(job, sessions, signal) {
   job.log(msg('browser.opening'));
   const session = await sessions.open(config.request.url, { signal });
   const monitor = monitorPage(session.page, config.limits.maxResponseBytes);
-  const replayUntil = job.state?.round || 0;
+  const checkpointUrl = job.progress.position?.pageUrl;
+  const jump = !config.source && job.state?.navigation === 'page' && checkpointUrl && checkpointUrl !== config.request.url && new URL(checkpointUrl).origin === new URL(config.request.url).origin;
+  const replayUntil = jump ? 0 : job.state?.round || 0;
   let idle = 0, runItems = 0, runBatches = 0, previousAction, previousView, sessionId;
   let source = config.source;
   const history = [], views = new Set(), consumed = new Set();
   const maxActions = config.limits.maxActions || 10000;
   if (source?.pagination !== 'batch' && Number.isSafeInteger(source?.total)) job.progress.total = source.total;
   try {
-    await session.page.goto(config.request.url, { waitUntil: 'domcontentloaded', timeout: config.limits.timeoutMs });
+    await session.page.goto(jump ? checkpointUrl : config.request.url, { waitUntil: 'domcontentloaded', timeout: config.limits.timeoutMs });
     for (let round = 0; round < maxActions + replayUntil; round++) {
       signal.throwIfAborted();
       await monitor.settle(signal, Math.max(config.limits.delayMs, previousAction?.action === 'nextItem' ? 100 : 1200), config.limits.timeoutMs);
@@ -274,14 +277,20 @@ export async function runBrowser(job, sessions, signal) {
       let items = [], raw;
       const recent = monitor.captures.splice(0);
       history.push(...recent);
+      // Retain the bootstrap and a bounded window, never all response payloads.
+      while (history.length > 12) {
+        const index = history.findIndex(capture => !sourceMatches(capture, source?.seed));
+        history.splice(index < 0 ? 0 : index, 1);
+      }
+      for (const capture of consumed) if (!history.includes(capture)) consumed.delete(capture);
       if (source) {
-        const fresh = analyzeCaptures(history).find(candidate => {
+        const fresh = recent.length ? analyzeCaptures(history).find(candidate => {
           const next = candidate.source;
           if (!next.seed) return false;
           if (next.seed.origin === source.origin && next.seed.pathname === source.pathname && next.seed.method === source.method) return next.seed.itemsPath === source.itemsPath;
           const parts = next.pathname.split('/'), old = source.pathname.split('/');
           return next.origin === source.origin && next.method === source.method && next.itemsPath === source.itemsPath && parts.length === old.length && parts.every((part, index) => index === next.sessionPathIndex || part === old[index]);
-        });
+        }) : null;
         if (fresh) source = fresh.source;
         const bootstrap = history.filter(capture => sourceMatches(capture, source.seed)).at(-1);
         if (bootstrap) sessionId = getAt(bootstrap.response, source.seed.sessionIdPath);
@@ -311,7 +320,7 @@ export async function runBrowser(job, sessions, signal) {
         const cookies = await session.context.cookies(config.request.url);
         if (cookies.length) config.request.headers.cookie = cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; ');
       }
-      const saved = await job.commit(items, raw, { round: round + 1, idleCount: idle }, { engine: 'browser', round: round + 1, pageUrl: dom.url });
+      const saved = await job.commit(items, raw, { round: round + 1, idleCount: idle, navigation: previousAction?.action || job.state?.navigation || null }, { engine: 'browser', round: round + 1, pageUrl: dom.url });
       runItems += saved;
       if (saved > 0) runBatches++;
       job.progress.requests = monitor.requests;

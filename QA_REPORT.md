@@ -1,5 +1,72 @@
 # Kết quả kiểm tra Cào Cào
 
+## Thư viện học tập và dữ liệu lớn 1.4.0 (09/10/2026, Asia/Bangkok)
+
+Các đợt: [#7](https://github.com/vankhoa-gubit/CaoCao-Tool/issues/7), [#8](https://github.com/vankhoa-gubit/CaoCao-Tool/issues/8), [#9](https://github.com/vankhoa-gubit/CaoCao-Tool/issues/9), [#10](https://github.com/vankhoa-gubit/CaoCao-Tool/issues/10). Nhánh `codex/learning-library`, dựa trên `origin/main` tại `3f1a30c`. Lộ trình: [LEARNING_ROADMAP.md](LEARNING_ROADMAP.md).
+
+**PASS: 124/124 ca qua `npm test` trên Node.js v24.21.0, Windows**, gồm 99 ca hiện có và 25 ca thư viện/phục hồi mới. Lượt cuối **102,5 giây**, không FAIL, CANCELLED hoặc SKIPPED. Log: `.qa/learning-release-npm-test.log`. `npm test` giới hạn 2 file test song song để tránh mở quá nhiều trình duyệt cùng lúc. `git diff --check` không có lỗi whitespace.
+
+### Các luồng và lỗi đã kiểm chứng
+
+| Nhóm | Kết quả và bằng chứng |
+| --- | --- |
+| Bài viết | URL → xem mẫu → chọn bộ sưu tập → lưu → mở đọc; danh sách lưu đủ nội dung riêng của 3 bài, giữ nguồn/ngày lưu; nhập lặp loại trùng |
+| Thư viện | Bộ sưu tập, ghi chú/thẻ, đổi loại/lọc/tìm; tìm không dấu trong ghi chú; dữ liệu, ghi chú và tệp hoàn tất còn sau restart; xóa bộ sưu tập giữ nội dung |
+| Tài liệu/tệp | Commit metadata riêng; PDF trả HTML đăng nhập bị báo lỗi; retry lấy đúng bytes; PDF ETag không đổi không phát GET mới; stream bị ngắt ở byte 200 tiếp tục bằng Range + If-Range mạnh và khớp SHA-256 nguồn |
+| Câu hỏi | Nhận diện URL mẫu, lấy đủ 6 câu; nhập job đã có; trường nested; mẫu cập nhật khi đổi trường; giữ đáp án 0/false; nguồn thiếu đáp án được báo rõ; nhập lặp không nhân đôi câu hỏi |
+| Thẻ/ghi chú | Trước/sau, phím mũi tên chuyển câu, ẩn đáp án khi chuyển; bản nháp ghi chú và focus còn khi đổi ngôn ngữ; lưu ghi chú/thẻ vào SQLite |
+| Xuất | HTML escape script nguồn; CSV bảo vệ công thức, giữ 0/false; Markdown theo bộ lọc không thêm đáp án thiếu; PDF từ API và thao tác tải UI là file PDF thật, đã render và kiểm tra text tiếng Việt |
+| Băng thông đọc bài | Fixture HTTP thật có ảnh/font/media/script/XHR: phiên bình thường phát request tài nguyên; mẫu thư viện chặn request ảnh/font/media nhưng vẫn thực thi JavaScript và lấy nội dung XHR. Đây là chứng minh hành vi, không phải tỷ lệ tiết kiệm cho website bất kỳ |
+| Tệp lõi | Trang/cursor đã commit trước khi tệp chậm hoàn tất; file 404 giữ bản ghi; retry tệp qua HTTP API không phát request cào mới; lỗi URL không hợp lệ vẫn còn trong file trang và bộ đếm |
+| Lỗi lưu hàng đợi | Lỗi ghi checkpoint của worker được trả ra, không âm thầm tải lại cùng trang; job dừng worker trước khi đóng kết nối; checksum nội dung bị sửa làm export/resume báo lỗi và giữ file bị sửa |
+| Ngắt tiến trình | Kill child QA bằng SIGKILL sau flush/rename trang thứ 2, trước persist checkpoint: restart đối soát 20 ID từ trang, chạy tiếp từ trang 3, đủ 70 ID duy nhất, hash trang giữ nguyên. Kill sau giao dịch nhập 100 câu: restart giữ 100 câu/cursor, resume đủ 150, không cào lại nguồn |
+| Điều phối/đóng | Nhập câu hỏi giữ slot qua cả giai đoạn cào và lưu thư viện; yêu cầu thứ ba bị chặn khi đã có 2 slot. Đóng khi đang xuất PDF hủy operation, đợi pending và trả slot. Close thư viện hai lần an toàn |
+| Hồi quy | Tải nhanh, nhận diện/cào API/trình duyệt, batch/cursor/offset, checkpoint cũ, nguồn/hàng đợi/lịch, bảng/xuất/compare/quality, Việt/Anh đều trong suite cuối |
+
+Test mới: `test/learning.test.mjs` (16 ca), `test/learning-ui.test.mjs` (7 ca), `test/recovery.test.mjs` (2 ca); worker ngắt tiến trình: `test/helpers/crash-worker.mjs`. Kiểm thử hàng đợi cũ được sửa để lấy ID từ response POST và đợi lượt vừa tạo, thay vì đọc `queue.at(-1)` trước khi request hoàn tất.
+
+### UI và PDF
+
+- Suite cuối: `.qa/learning-ui-nB1FIi/screenshots/`, 12 ảnh thư viện/reader × vi/en × 1440×900, 768×1024, 390×844. Playwright chờ dialog reader thực sự mở trước chụp; kiểm tra tràn ngang, tọa độ controls và pageerror đều PASS.
+- Đã rà trực quan thư viện Vietnamese desktop/mobile, English tablet/mobile; reader Vietnamese desktop/mobile, English tablet/mobile ở các lượt `.qa/learning-ui-GEZhIh/`, `.qa/learning-ui-8GpJiR/`, `.qa/learning-ui-RXlcZ7/`. Font reader đổi sang Times New Roman sau khi ảnh Georgia có khoảng giãn chữ tiếng Việt. Dialog cuộn dọc để truy cập form và hành động bên dưới; không tràn ngang.
+- PDF API `.qa/learning-api-CQHSrh/question-export.pdf`: 3 trang, Poppler render cả 3, pypdf kiểm tra Unicode/0/false/ghi chú và câu thiếu đáp án. PDF tải từ UI `.qa/learning-ui-RXlcZ7/reader-export.pdf`: 1 trang, đã render/rà trực quan và text tiếng Việt giữ đúng. Các file PDF cuối suite được giữ ở `.qa/learning-api-oFp3BH/question-export.pdf` và `.qa/learning-ui-nB1FIi/reader-export.pdf`.
+- Launcher `node scripts/launch.mjs --check` PASS trên môi trường đã cài dependencies/browser, log `.qa/launcher-check.log`. `node src/server.mjs --port -1` trả exit 1 với thông báo cổng dễ hiểu, log `.qa/launcher-invalid-port.log`. Chưa thử nhấp đúp/cài dependencies lần đầu trên máy Windows sạch hoặc Node 22.13; môi trường kiểm chứng dùng Node 24.21.0.
+
+### Benchmark 100 nghìn và 1 triệu bản ghi
+
+Chạy `npm run benchmark:learning` bằng nguồn HTTP cục bộ, 1.000 bản ghi/trang, lưu raw response. Mỗi kích thước chạy trong **tiến trình Node riêng**, cào nửa → đóng manager → mở lại → chạy tiếp. RSS/heap lấy mẫu mỗi 20 ms và tại ranh giới các pha. Fixture HTTP ở tiến trình cha, không tính vào RAM worker; không có browser trong benchmark. Không dùng Set chứa toàn bộ ID để kiểm chứng: duyệt streaming và so từng ID đúng thứ tự.
+
+| Phép đo | 100.000 bản ghi | 1.000.000 bản ghi |
+| --- | --- | --- |
+| Trang / request HTTP | 100 / 100 | 1.000 / 1.000 |
+| Response body, không gồm headers | 43.959.361 byte | 443.601.561 byte |
+| Cào nửa đầu | 1,74 giây | 22,58 giây |
+| Khởi động lại qua metadata | 4,97 ms | 4,48 ms |
+| Nửa sau, gồm dựng khóa/kiểm tra trang cũ | 2,76 giây | 55,83 giây |
+| Tổng hai lượt cào/resume | 4,50 giây | 78,41 giây |
+| Xác minh toàn bộ ID + hash trang ban đầu | 1,29 giây | 12,49 giây |
+| Dựng chỉ mục và xem bảng lần đầu | 3,19 giây | 65,13 giây |
+| Xem trang cuối sau khi có chỉ mục | 84,73 ms | 985,86 ms |
+| Tìm một tiêu đề bằng substring | 214,81 ms | 1.765,91 ms |
+| RSS cao nhất lấy mẫu trong các pha | 365,46 MiB | 375,84 MiB |
+| ID đã kiểm tra đúng thứ tự | 100.000 | 1.000.000 |
+| Trang trước restart không đổi hash | 50 | 500 |
+| Khóa giữ trong đối tượng job sau kết thúc | 0 | 0 |
+
+So sánh 1 triệu với bộ 100 nghìn cùng nguồn/ID: **900.000 mới, 100 thay đổi, 0 vắng, 99.900 không đổi**; 19,82 giây, RSS lấy mẫu pha so sánh 357,53 MiB. Kiểm tra trang kết quả và khóa số của thay đổi. Không tải lại trang đã commit trong hai lượt cào; đã kiểm tra chuỗi request chính xác 1…100 và 1…1.000.
+
+Lượt trước điều chỉnh WAL/cache của chỉ mục phụ mất **343,17 giây** cho tổng cào/resume 1 triệu ID, RSS đỉnh của hai pha cào **297,63 MiB**. Lượt sau **78,41 giây**, RSS hai pha **375,84 MiB**. Cache dùng thêm RAM để giảm I/O; đây là hai lượt trên cùng fixture/máy, không phải benchmark đối chứng bản 1.3.0 và không chứng minh hệ số tăng tốc trên mọi nguồn.
+
+Bằng chứng cuối: `.qa/learning-benchmark-xH1als/result.json`, log `.qa/learning-benchmark-final.log`. Lượt trước tuning: `.qa/learning-benchmark-br3zBx/result.json`. Script: `scripts/benchmark-learning.mjs`. Cache file của OS không xóa; số đo startup nhanh không gồm dựng khóa khi resume, cũng không chứng minh thời gian sau cold boot. RSS lấy mẫu có thể bỏ lỡ đỉnh ngắn; không phải tổng RAM của app kèm browser. Bộ nhớ đĩa của các chỉ mục vẫn tăng theo lượng dữ liệu.
+
+### Phạm vi và giới hạn
+
+Mọi fixture/database/session/ảnh/log mới nằm trong `.qa/`; `data/` thật không dùng để seed hoặc kiểm thử. Gate test và benchmark hoàn tất trước push. Chưa kiểm chứng website bên ngoài, production, mạng chậm thực tế, mất điện toàn máy, Edge, điện thoại thật hoặc người dùng phổ thông thật.
+
+PDF thư viện là tệp gốc, chưa OCR/tìm chữ bên trong; bài lưu dưới dạng chữ, không giữ đầy đủ bố cục/hình ảnh của website. Trang danh sách tối đa 100 URL cùng nguồn, 30 URL tệp/ảnh mỗi bài, 2 MB chữ/bài, 100 MB/tệp, mẫu ánh xạ 512 KB. PDF xuất tối đa 500 mục/10 MB HTML; bộ lớn dùng HTML/Markdown/CSV streaming. Lịch cần server chạy. Một phiên server cho mỗi thư mục dữ liệu; chưa có installer chứa sẵn Node hoặc đồng bộ cloud.
+
+Chỉ mục loại trùng/bảng/so sánh là dữ liệu dẫn xuất, dùng WAL/NORMAL và cache để giảm I/O, có thể dựng lại từ trang gốc; trang gốc/checkpoint/hàng đợi tệp/thư viện vẫn flush/FULL. SHA-256 phát hiện sai lệch dữ liệu, không phải chữ ký chống giả mạo. Trang legacy chưa có checksum vẫn được chấp nhận để giữ khả năng đọc dữ liệu cũ.
+
 ## Mở rộng nguồn và dữ liệu 1.3.0 (08/10/2026, Asia/Bangkok)
 
 Issue: [#5](https://github.com/vankhoa-gubit/CaoCao-Tool/issues/5). Nhánh: `codex/issue-5-source-workspace`, dựa trên bản tối ưu `8a41a8c`.

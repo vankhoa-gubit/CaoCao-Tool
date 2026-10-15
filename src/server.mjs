@@ -158,7 +158,7 @@ export async function createApp({ dataDirectory = join(projectRoot, 'data'), ses
       if (request.method === 'POST' && pathname === '/api/browser/save') { const input = await bodyJson(request); await sessions.saveLogin(input.id); json({ saved: true }); return; }
       json(fields(msg('route.notFound'), 'error'), 404);
     } catch (error) {
-      if (!response.headersSent) json(fields(errorMessage(error), 'error'), ['source.notFound', 'job.notFound', 'queue.notFound', 'data.recordMissing','learning.itemMissing','learning.collectionMissing','learning.fileMissing'].includes(error.messageData?.code) ? 404 : ['job.capacity', 'source.inUse', 'queue.retry', 'queue.cancel','learning.importBusy'].includes(error.messageData?.code) ? 409 : 400);
+      if (!response.headersSent) json(fields(errorMessage(error), 'error'), ['source.notFound', 'job.notFound', 'queue.notFound', 'data.recordMissing','learning.itemMissing','learning.collectionMissing','learning.fileMissing'].includes(error.messageData?.code) ? 404 : ['job.capacity', 'source.inUse', 'queue.retry', 'queue.cancel','learning.importBusy','learning.previewChanged'].includes(error.messageData?.code) ? 409 : 400);
       else response.destroy();
     }
   });

@@ -6,7 +6,8 @@ import {createApp,listen,projectRoot} from '../src/server.mjs';
 import {BrowserSessions} from '../src/browser.mjs';
 let app,origin,directory,ui,articleId,questionId;const errors=[];
 async function until(read,predicate,ms=20000){const end=Date.now()+ms;for(;;){const value=await read();if(predicate(value))return value;if(Date.now()>end)throw new Error('Expected learning UI state not reached');await new Promise(resolve=>setTimeout(resolve,60));}}
-async function refresh(){await ui.page.locator('#learning-refresh').click();await until(()=>ui.page.locator('#learning-refresh').isEnabled(),Boolean);}
+// The preview screen replaces the shelf; return to the library before reading it.
+async function refresh(){if(await ui.page.locator('#learning-preview-screen').isVisible())await ui.page.locator('#learning-preview-back').click();await ui.page.locator('#learning-refresh').click();await until(()=>ui.page.locator('#learning-refresh').isEnabled(),Boolean);}
 before(async()=>{await mkdir(join(projectRoot,'.qa'),{recursive:true});directory=await mkdtemp(join(projectRoot,'.qa','learning-ui-'));await mkdir(join(directory,'screenshots'));app=await createApp({dataDirectory:directory,scanOptions:{rounds:1,waitMs:300}});origin=await listen(app,0);ui=await new BrowserSessions(join(directory,'ui-session')).open(origin,{acceptDownloads:true});ui.page.on('pageerror',error=>errors.push(error.message));await ui.page.goto(origin+'/#library');await ui.page.locator('#learning-title').waitFor();});
 after(async()=>{await ui?.close();await app?.close();console.log('Learning UI evidence: '+directory);});
 
@@ -14,7 +15,8 @@ test('URL → preview → collection → save → reader works without technical
   const page=ui.page;assert.equal(await page.locator('#library-panel').isVisible(),true);assert.equal(await page.locator('#advanced').isVisible(),false);
   await page.locator('#learning-collection-name').fill('Tủ sách cá nhân');await page.locator('#learning-collection-form button').click();await until(()=>page.locator('#learning-destination option').allTextContents(),labels=>labels.includes('Tủ sách cá nhân'));
   await page.locator('[data-learning-demo="article"]').click();await until(()=>page.locator('#learning-sample').isVisible(),Boolean);assert.ok((await page.locator('#learning-sample-body').textContent()).includes('Đọc có chủ đích'));
-  await page.locator('#learning-save').click();await until(()=>app.library.list({kind:'article'}).pagination.total,total=>total===1);await refresh();articleId=app.library.list({kind:'article'}).items[0].id;
+  assert.equal(await page.locator('#learning-shelf').isVisible(),false);assert.equal(await page.locator('#learning-save').textContent(),'Bắt đầu tải vào thư viện');assert.ok((await page.locator('#learning-summary').textContent()).includes('Đọc nội dung trang'));assert.equal(app.library.list({}).pagination.total,0);
+  await page.locator('#learning-save').click();await until(()=>app.library.list({kind:'article'}).pagination.total,total=>total===1);await until(()=>page.locator('#learning-import-progress').textContent(),text=>text==='1/1 mục đã lưu');assert.ok((await page.locator('#learning-import-summary').textContent()).includes('Tủ sách cá nhân'));await refresh();articleId=app.library.list({kind:'article'}).items[0].id;
   await page.locator(`[data-learning-id="${articleId}"]`).click();await page.locator('#learning-reader[open]').waitFor();assert.ok((await page.locator('#learning-reader-body').textContent()).includes('Trước khi đọc'));
 });
 test('Reader notes, tags and form focus survive language switches and refresh',async()=>{
@@ -43,10 +45,33 @@ test('Reader export download is a real PDF; Escape closes the reader',async()=>{
   const page=ui.page,download=page.waitForEvent('download');await page.locator('[data-learning-item-export="pdf"]').click();const file=await download,path=await file.path();assert.equal((await readFile(path)).subarray(0,5).toString(),'%PDF-');await file.saveAs(join(directory,'reader-export.pdf'));await page.keyboard.press('Escape');assert.equal(await page.locator('#learning-reader').isVisible(),false);
 });
 test('Vietnamese/English library and reader fit desktop, tablet and mobile; screenshots retained',async()=>{
-  const page=ui.page;for(const language of ['vi','en']){await page.locator(`[data-language="${language}"]`).click();for(const [width,height] of [[1440,900],[768,1024],[390,844]]){
+  const page=ui.page;for(const language of ['vi','en']){await page.locator(`[data-language="${language}"]`).click();for(const [width,height] of [[1440,900],[768,1024],[390,844],[320,640]]){
     await page.setViewportSize({width,height});await page.screenshot({path:join(directory,'screenshots',`library-${language}-${width}.png`),fullPage:true});
     const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth);assert.equal(overflow,false,`${language} ${width} page overflow`);
+    await page.locator('[data-learning-demo="list"]').click();await until(()=>page.locator('#learning-sample').isVisible(),Boolean);await page.screenshot({path:join(directory,'screenshots',`preview-${language}-${width}.png`),fullPage:true});
+    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,`${language} ${width} preview overflow`);
+    const previewClipped=await page.locator('#learning-preview-screen').evaluate(node=>[...node.querySelectorAll('input,select,button,a')].filter(control=>{const rect=control.getBoundingClientRect();return rect.width>0&&(rect.left<0||rect.right>innerWidth+1);}).map(control=>control.id||control.textContent));assert.deepEqual(previewClipped,[],`${language} ${width} clipped preview controls`);
+    await page.locator('#learning-preview-back').click();await page.locator('#learning-shelf').waitFor();
     await page.locator(`[data-learning-id="${articleId}"]`).click();await page.locator('#learning-reader[open]').waitFor();assert.equal(await page.locator('#learning-reader').isVisible(),true);await page.screenshot({path:join(directory,'screenshots',`reader-${language}-${width}.png`)});
     const clipped=await page.locator('#learning-reader').evaluate(node=>[...node.querySelectorAll('input,select,textarea,button')].filter(control=>{const rect=control.getBoundingClientRect();return rect.width>0&&(rect.left<0||rect.right>innerWidth+1);}).map(control=>control.id));assert.deepEqual(clipped,[],`${language} ${width} clipped controls`);await page.keyboard.press('Escape');
   }}assert.deepEqual(errors,[]);
+});
+test('Scan status, cancel, source change and expired tokens never leave an old sample or create imports',async()=>{
+  const page=ui.page,imports=()=>app.library.db.prepare('SELECT count(*) n FROM imports').get().n,before=imports();let delayed=0;await page.locator('[data-language="en"]').click();
+  await page.route('**/api/library/preview',async route=>{if(delayed++===0)await new Promise(resolve=>setTimeout(resolve,1500));await route.continue().catch(()=>{});});
+  try{
+    await page.locator('#learning-kind').selectOption('article');await page.locator('#learning-scope').selectOption('page');await page.locator('#learning-url').fill(origin+'/demo/learning/article/3');await page.locator('#learning-preview').click();
+    await page.locator('#learning-scan-status').waitFor();assert.equal(await page.locator('#learning-scan-text').textContent(),'Opening the page and reading the article…');await page.locator('#learning-scan-cancel').click();
+    assert.equal(await page.locator('#learning-scan-message-title').textContent(),'Scan cancelled. Nothing was added to the library.');assert.equal(await page.locator('#learning-sample').isVisible(),false);
+    delayed=0;await page.locator('#learning-scope').selectOption('list');await page.locator('#learning-url').fill(origin+'/demo/learning/articles');await page.locator('#learning-preview').click();await page.locator('#learning-scan-status').waitFor();
+    await page.locator('#learning-scope').selectOption('page');assert.ok((await page.locator('#learning-scan-message-title').textContent()).startsWith('The source changed'));assert.equal(await page.locator('#learning-scan-retry').isVisible(),false);
+    await page.locator('#learning-url').fill(origin+'/demo/learning/article/2');await page.locator('#learning-preview').click();await until(()=>page.locator('#learning-sample').isVisible(),Boolean);
+    await new Promise(resolve=>setTimeout(resolve,2000));assert.equal(await page.locator('#learning-list-section').isVisible(),false);assert.equal(await page.locator('#learning-sample-body article strong').allTextContents().then(titles=>titles.join('|')),'Ôn tập cách quãng');
+    for(const preview of app.library.previews.values())preview.expires=Date.now()-1;await page.locator('#learning-save').click();
+    await until(()=>page.locator('#learning-scan-message-title').textContent(),text=>text==='The preview has expired. Preview the content again.');assert.equal(imports(),before);
+    await page.locator('#learning-scan-retry').click();await until(()=>page.locator('#learning-sample').isVisible(),Boolean);await page.locator('#learning-save').click();
+    await until(()=>page.locator('#learning-import-progress').textContent(),text=>text==='1/1 items saved');assert.equal(imports(),before+1);
+    await page.locator('#learning-open-library').click();await page.locator('#learning-shelf').waitFor();assert.equal(await page.locator('#learning-filter-kind').inputValue(),'article');
+    await page.locator('#learning-filter-kind').selectOption('');await refresh();assert.deepEqual(errors,[]);
+  }finally{await page.unroute('**/api/library/preview');}
 });

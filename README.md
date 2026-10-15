@@ -24,10 +24,12 @@ Nếu không có Chrome/Edge, chạy `npx playwright install chromium`. Có th�
 Mở tab **Thư viện học tập**, hoặc thêm `/#library` vào địa chỉ ứng dụng.
 
 1. Dán **Đường dẫn nội dung** và chọn **Bài viết**, **Tài liệu / PDF** hoặc **Câu hỏi**.
-2. Với bài viết, chọn một bài hoặc danh sách. Bấm **Xem mẫu trước khi lưu** để kiểm tra nội dung. Trang danh sách lấy liên kết cùng website trong vùng nội dung, tối đa 100 liên kết, rồi lưu nội dung từng bài.
-3. Tạo/chọn **bộ sưu tập**, chọn tải tệp nếu cần, rồi bấm lưu. Nội dung và tệp có tiến độ riêng. Có thể tạm dừng/chạy tiếp lượt lưu và thử lại tệp lỗi trong phần đọc.
-4. Mở nội dung trong thư viện để đọc, sửa tên, thêm thẻ hoặc ghi chú. Tìm theo tiêu đề, nội dung, thẻ, ghi chú; lọc theo loại và bộ sưu tập. Xóa bộ sưu tập giữ các nội dung trong thư viện.
-5. Với câu hỏi, chuyển sang **Thẻ học**, thử trả lời rồi mở đáp án. Phím trái/phải chuyển câu; phím cách mở/ẩn đáp án khi đang ở vùng thẻ. Câu hỏi chưa có đáp án từ nguồn được ghi rõ.
+2. Với bài viết, chọn một bài hoặc danh sách rồi bấm **Quét & xem trước**. Trang danh sách lấy liên kết cùng website trong vùng nội dung, tối đa 100 liên kết, và mở 2 bài đầu làm mẫu thực.
+3. Màn hình **Xem trước dữ liệu** thay chỗ kệ thư viện trong lúc quét: hiển thị trạng thái, thời gian quét và nút **Hủy quét**; lỗi hoặc hủy có nút **Quét lại**. Đổi URL, loại nội dung hoặc phạm vi sẽ bỏ mẫu cũ, và phản hồi của lượt quét cũ không ghi đè mẫu mới.
+4. Kiểm tra nguồn, tổng dự kiến (hoặc **Chưa biết**), số mẫu, cách thu thập, trường dữ liệu, cảnh báo và mẫu (bài viết, danh sách bài sẽ tải, metadata PDF, câu hỏi kèm ánh xạ trường). Quét và xem trước không thêm nội dung, lượt nhập hay tệp nào vào thư viện.
+5. Chọn **bộ sưu tập**, chọn tải tệp nếu cần, rồi bấm **Bắt đầu tải vào thư viện**. Mẫu có hiệu lực 10 phút; mẫu hết hạn, đã bị thay hoặc ánh xạ đã đổi sau khi xem đều bị từ chối. Gửi lại cùng một xác nhận trả về lượt tải đã tạo, không tạo trùng. Sau đó màn hình giữ tóm tắt nguồn, tiến độ, nút tạm dừng/chạy tiếp và **Mở trong thư viện**. Nội dung và tệp có tiến độ riêng; thử lại tệp lỗi trong phần đọc.
+6. Mở nội dung trong thư viện để đọc, sửa tên, thêm thẻ hoặc ghi chú. Tìm theo tiêu đề, nội dung, thẻ, ghi chú; lọc theo loại và bộ sưu tập. Xóa bộ sưu tập giữ các nội dung trong thư viện.
+7. Với câu hỏi, chuyển sang **Thẻ học**, thử trả lời rồi mở đáp án. Phím trái/phải chuyển câu; phím cách mở/ẩn đáp án khi đang ở vùng thẻ. Câu hỏi chưa có đáp án từ nguồn được ghi rõ.
 
 Các nút bài viết, danh sách, PDF và câu hỏi mẫu dùng HTTP thật do ứng dụng phục vụ. Bạn cũng có thể mở **Thêm câu hỏi từ lượt tải đã có**, chọn lượt tải và kiểm tra ánh xạ câu hỏi/lựa chọn/đáp án/ID. Mẫu cập nhật khi đổi trường. Giá trị đáp án `0`, `false` và câu hỏi thiếu đáp án được giữ đúng.
 

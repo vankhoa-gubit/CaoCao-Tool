@@ -64,7 +64,9 @@ export class WorkspaceUI {
   time(value) { return value ? new Date(value).toLocaleString(this.getLanguage() === 'en' ? 'en-US' : 'vi-VN') : '—'; }
   status(value) { return this.t((['queued', 'scanning', 'starting', 'cancelled'].includes(value) ? 'queue.' : 'status.') + value); }
   async showPanel(panel) {
+    if (!['quick', 'sources', 'data', 'library'].includes(panel)) return;
     this.panel = panel;
+    history.replaceState(null, '', '#' + panel);
     for (const name of ['quick', 'sources', 'data', 'library']) $(name + '-panel').hidden = panel !== name;
     for (const node of document.querySelectorAll('[data-panel]')) node.setAttribute('aria-pressed', String(node.dataset.panel === panel));
     clearTimeout(this.timer);

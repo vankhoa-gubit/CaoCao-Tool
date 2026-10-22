@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "Cào Cào — Lưu vào thư viện",
+  "description": "Đọc bài viết, bảng và bộ thẻ trong tab đang mở, xem trước và lưu vào thư viện Cào Cào trên máy.",
+  "version": "0.1.0",
+  "minimum_chrome_version": "120",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA4oKi6JBl4RzFKiAne+qjE/tlLGEuXvIoBvUGxPC0kza4x4COzBzQgJUNGxZVx3irqVG0wnQTgEEJNFQBuhVNSL5TAKXaQAZbh2PT3JzHPhcknq52Y83kfZHT5KeQTgdTHXlWSAdchSR6IzYtO6zvNJwV1bSvef7WhVgfXMfr+w1mmRpNwLmSW0VwtLEpnMOvllF7RWv6kVpzNhcJzN0BFMXsiSP3V2cMuFGng+/cDaZ5UZqPfe266uhTejaIqjxodeKxonhW/BUlPq1M7EV6GFOCWw2Zla4IQ3MqkD7s2/2Ds11ElqamY1U4LhGBRs8Ko8m+bidrSOFpMtqs5xvvDwIDAQAB",
+  "permissions": ["activeTab", "scripting", "storage", "nativeMessaging"],
+  "background": { "service_worker": "worker.js", "type": "module" },
+  "action": { "default_popup": "popup.html", "default_title": "Lưu vào Cào Cào" },
+  "icons": { "16": "icons/16.png", "32": "icons/32.png", "48": "icons/48.png", "128": "icons/128.png" },
+  "content_security_policy": { "extension_pages": "script-src 'self'; object-src 'none'; base-uri 'none'" }
+}

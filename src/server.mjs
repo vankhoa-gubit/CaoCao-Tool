@@ -19,6 +19,7 @@ import { DatasetService } from './datasets.mjs';
 import { LearningLibrary } from './library.mjs';
 import { libraryRoute } from './library-routes.mjs';
 import { handleLearningDemo } from './learning-demo.mjs';
+import { ExtensionBridge } from './extension-bridge.mjs';
 
 export const projectRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 
@@ -36,8 +37,11 @@ export async function createApp({ dataDirectory = join(projectRoot, 'data'), ses
   const workspace = await new SourceWorkspace(dataDirectory, manager, analyze || ((url, signal) => scanWebsite(url, sessions, () => {}, signal, scanOptions)), workspaceOptions).init();
   const datasets = new DatasetService(manager);
   const library = await new LearningLibrary(join(dataDirectory, 'library'), manager, datasets, sessions, { scanOptions }).init();
-  const staticFiles = { '/': ['index.html', 'text/html; charset=utf-8'], '/app.js': ['app.js', 'text/javascript; charset=utf-8'], '/workspace.js': ['workspace.js', 'text/javascript; charset=utf-8'], '/workspace-i18n.js': ['workspace-i18n.js', 'text/javascript; charset=utf-8'], '/i18n.js': ['i18n.js', 'text/javascript; charset=utf-8'], '/messages.js': ['messages.js', 'text/javascript; charset=utf-8'], '/style.css': ['style.css', 'text/css; charset=utf-8'] };
+  const extensionBridge = await new ExtensionBridge(dataDirectory, library).init();
+  const staticFiles = { '/': ['home.html', 'text/html; charset=utf-8'], '/app.js': ['app.js', 'text/javascript; charset=utf-8'], '/workspace.js': ['workspace.js', 'text/javascript; charset=utf-8'], '/workspace-i18n.js': ['workspace-i18n.js', 'text/javascript; charset=utf-8'], '/i18n.js': ['i18n.js', 'text/javascript; charset=utf-8'], '/messages.js': ['messages.js', 'text/javascript; charset=utf-8'], '/style.css': ['style.css', 'text/css; charset=utf-8'] };
   Object.assign(staticFiles, { '/learning.js': ['learning.js','text/javascript; charset=utf-8'], '/learning-i18n.js': ['learning-i18n.js','text/javascript; charset=utf-8'], '/learning.css': ['learning.css','text/css; charset=utf-8'] });
+  Object.assign(staticFiles, { '/extension': ['extension.html','text/html; charset=utf-8'], '/extension.css': ['extension.css','text/css; charset=utf-8'], '/extension-setup.js': ['extension-setup.js','text/javascript; charset=utf-8'] });
+  Object.assign(staticFiles, { '/app': ['index.html','text/html; charset=utf-8'], '/home.js': ['home.js','text/javascript; charset=utf-8'], '/site.css': ['site.css','text/css; charset=utf-8'], '/tokens.css': ['tokens.css','text/css; charset=utf-8'] });
   const server = http.createServer(async (request, response) => {
     const json = (value, status = 200) => { response.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }); response.end(JSON.stringify(value)); };
     try {
@@ -49,6 +53,12 @@ export async function createApp({ dataDirectory = join(projectRoot, 'data'), ses
       response.setHeader('X-Content-Type-Options', 'nosniff');
       response.setHeader('Referrer-Policy', 'no-referrer');
       const url = new URL(request.url, origin), pathname = url.pathname;
+      if (await extensionBridge.route(request, response, url, bodyJson, json)) return;
+      if (pathname === '/extension-download' && request.method === 'GET') {
+        const { buildExtension } = await import('../scripts/build-extension.mjs');
+        const packageData = await buildExtension({ quiet: true });
+        response.writeHead(200, { 'Content-Type': 'application/zip', 'Content-Disposition': 'attachment; filename="CaoCao-Extension.zip"' }); response.end(packageData.bytes); return;
+      }
       if (await libraryRoute(request, response, url, library, bodyJson, json)) return;
       if (pathname === '/api/jobs/files/retry' && request.method === 'POST') { const input = await bodyJson(request); json(manager.get(input.jobId).retryFiles()); return; }
       if (request.method === 'GET' && staticFiles[pathname]) {
@@ -158,13 +168,13 @@ export async function createApp({ dataDirectory = join(projectRoot, 'data'), ses
       if (request.method === 'POST' && pathname === '/api/browser/save') { const input = await bodyJson(request); await sessions.saveLogin(input.id); json({ saved: true }); return; }
       json(fields(msg('route.notFound'), 'error'), 404);
     } catch (error) {
-      if (!response.headersSent) json(fields(errorMessage(error), 'error'), ['source.notFound', 'job.notFound', 'queue.notFound', 'data.recordMissing','learning.itemMissing','learning.collectionMissing','learning.fileMissing'].includes(error.messageData?.code) ? 404 : ['job.capacity', 'source.inUse', 'queue.retry', 'queue.cancel','learning.importBusy'].includes(error.messageData?.code) ? 409 : 400);
+      if (!response.headersSent) json(fields(errorMessage(error), 'error'), ['source.notFound', 'job.notFound', 'queue.notFound', 'data.recordMissing','learning.itemMissing','learning.collectionMissing','learning.fileMissing'].includes(error.messageData?.code) ? 404 : ['job.capacity', 'source.inUse', 'queue.retry', 'queue.cancel','learning.importBusy','learning.previewChanged'].includes(error.messageData?.code) ? 409 : 400);
       else response.destroy();
     }
   });
-  server.once('listening', () => { workspace.start(); library.start(); });
-  const close = async () => { for (const scan of scans.values()) scan.controller.abort(); await library.close(); await workspace.close(); await Promise.allSettled([...scans.values()].map(scan => scan.promise)); await manager.close(); await new Promise(resolve => server.close(resolve)); };
-  return { server, manager, sessions, scans, workspace, datasets, library, close };
+  server.once('listening', () => { workspace.start(); library.start(); extensionBridge.publish(`http://127.0.0.1:${server.address().port}`).catch(() => {}); });
+  const close = async () => { for (const scan of scans.values()) scan.controller.abort(); await library.close(); await workspace.close(); await Promise.allSettled([...scans.values()].map(scan => scan.promise)); await manager.close(); await extensionBridge.close(); await new Promise(resolve => server.close(resolve)); };
+  return { server, manager, sessions, scans, workspace, datasets, library, extensionBridge, close };
 }
 
 export async function listen(app, preferredPort = 4317) {
@@ -182,10 +192,10 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   try {
   const index = process.argv.indexOf('--port'), port = index >= 0 ? Number(process.argv[index + 1]) : Number(process.env.PORT || 4317);
   if (!Number.isInteger(port) || port < 0 || port > 65525) throw new MessageError('port.invalid');
-  app = await createApp(); const url = await listen(app, port);
+  app = await createApp({ dataDirectory: process.env.CAOCAO_DATA_DIR || join(projectRoot, 'data') }); const url = await listen(app, port);
   console.log(`Cào Cào đang chạy tại ${url}\nDữ liệu lưu tại ${join(projectRoot, 'data')}\nNhấn Ctrl+C để dừng và lưu các tác vụ.`);
   if (process.argv.includes('--open')) {
-    const startUrl = url + '/#library';
+    const startUrl = url + '/';
     const child = process.platform === 'win32' ? spawn('cmd.exe', ['/c', 'start', '', startUrl], { windowsHide: true, detached: true, stdio: 'ignore' }) : spawn('xdg-open', [startUrl], { detached: true, stdio: 'ignore' });
     child.on('error', () => {}); child.unref();
   }

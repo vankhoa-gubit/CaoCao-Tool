@@ -3,6 +3,8 @@ import { workspaceStrings } from './workspace-i18n.js';
 import { learningStrings } from './learning-i18n.js';
 
 const strings = {
+  'site.home': ['Trang chủ', 'Home'],
+  'site.extension': ['Tải tiện ích Chrome', 'Get Chrome extension'],
   ...workspaceStrings,
   ...learningStrings,
   'app.title': ['Cào Cào · Tải dữ liệu về máy', 'Cào Cào · Download web data'],

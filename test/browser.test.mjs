@@ -26,7 +26,7 @@ async function until(read, condition, timeout = 60000) {
 
 test('UI E2E: URL → nhận diện cụm → tải 18 bản ghi và 18 file → JSON', { timeout: 90000 }, async () => {
   await ui.page.setViewportSize({ width: 1440, height: 1000 });
-  await ui.page.goto(origin);
+  await ui.page.goto(origin + '/app');
   await ui.page.screenshot({ path: join(screenshotDirectory, 'desktop-empty.png'), fullPage: true });
   await ui.page.locator('#demo-infinite').click();
   await ui.page.locator('#report').waitFor({ state: 'visible', timeout: 60000 });
@@ -94,7 +94,7 @@ test('DOM: danh sách hơn 500 bản ghi được lấy đầy đủ', async () 
 });
 
 test('UI: nhập file archive TXT nhận diện URL, đọc tổng và giữ cấu hình request', { timeout: 60000 }, async () => {
-  await ui.page.goto(origin);
+  await ui.page.goto(origin + '/app');
   await ui.page.locator('#advanced').evaluate(element => { element.open = true; });
   const configBefore = await ui.page.locator('#config-editor').inputValue();
   const records = Array.from({ length: 30 }, (_, i) => ({ questionId: i + 1, content: `Mẫu kiểm tra ${i + 1}` }));

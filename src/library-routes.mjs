@@ -25,7 +25,9 @@ export async function libraryRoute(request,response,url,library,bodyJson,json) {
   if(match&&method==='POST'){json(await library.jobPreview(match[1],await bodyJson(request)));return true;}
   match=path.match(/^\/api\/library\/previews\/([\w-]+)\/mapping$/);
   if(match&&method==='POST'){json(library.remapPreview(match[1],await bodyJson(request)));return true;}
-  if(path==='/api/library/imports'&&method==='POST'){json(library.startImport(await bodyJson(request)),202);return true;}
+  match=path.match(/^\/api\/library\/previews\/([\w-]+)$/);
+  if(match&&method==='DELETE'){json(library.discardPreview(match[1]));return true;}
+  if(path==='/api/library/imports'&&method==='POST'){const result=library.startImport(await bodyJson(request));json(result,result.duplicate?200:202);return true;}
   match=path.match(/^\/api\/library\/imports\/([\w-]+)\/(pause|resume)$/);
   if(match&&method==='POST'){await bodyJson(request);json(await library.importAction(match[1],match[2]));return true;}
   match=path.match(/^\/api\/library\/items\/(\d+)(?:\/(neighbors|retry-files|export\/(html|md|csv|pdf)))?$/);

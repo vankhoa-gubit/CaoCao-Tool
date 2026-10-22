@@ -4,14 +4,18 @@ import { statSync } from 'node:fs';
 import { join, extname } from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
 import { httpUrl } from './config.mjs';
-import { MessageError, errorMessage } from './messages.mjs';
+import { msg, MessageError, errorMessage } from './messages.mjs';
 import { fetchResponse, retryFetch } from './net.mjs';
 import { scanWebsite } from './browser.mjs';
 import { readLearningPage, questionFields, questionRecord } from './learning-extract.mjs';
+import { initCaptureStore } from './capture.mjs';
 
 const digest = value => createHash('sha256').update(value).digest('hex');
 const now = () => new Date().toISOString();
 const bounded = (value, length = 200) => { if (typeof value !== 'string' || value.length > length) throw new MessageError('learning.invalid'); return value.trim(); };
+const ARTICLE_FIELDS = ['title','body','author','publishedAt','url','files'];
+// Navigation links and detection flags are only needed while previewing, not in stored records.
+const articleRecord = ({ links, blocked, login, ...record }) => record;
 const canonicalUrl = value => { const url = httpUrl(value); url.hash = ''; for (const key of [...url.searchParams.keys()]) if (/^utm_|^(fbclid|gclid)$/.test(key)) url.searchParams.delete(key); return url.href; };
 
 export class LearningLibrary {
@@ -30,6 +34,10 @@ export class LearningLibrary {
       CREATE TABLE IF NOT EXISTS imports(id TEXT PRIMARY KEY,config TEXT NOT NULL,status TEXT NOT NULL,cursor INTEGER NOT NULL DEFAULT 0,items INTEGER NOT NULL DEFAULT 0,error TEXT,created_at TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS attachments(id INTEGER PRIMARY KEY,item_id INTEGER NOT NULL REFERENCES items(id) ON DELETE CASCADE,url TEXT NOT NULL,path TEXT NOT NULL,status TEXT NOT NULL,bytes INTEGER NOT NULL DEFAULT 0,etag TEXT,error TEXT,mime TEXT,UNIQUE(item_id,url));
       UPDATE imports SET status='paused' WHERE status='running'; UPDATE attachments SET status='paused' WHERE status='running';`);
+    // A confirmed preview token is stored with its import so a repeated confirmation returns the same run.
+    if (!this.db.prepare('PRAGMA table_info(imports)').all().some(column => column.name === 'token')) this.db.exec('ALTER TABLE imports ADD COLUMN token TEXT');
+    this.db.exec('CREATE UNIQUE INDEX IF NOT EXISTS imports_token ON imports(token)');
+    initCaptureStore(this.db);
     return this;
   }
   transaction(fn) { this.db.exec('BEGIN IMMEDIATE'); try { const result = fn(); this.db.exec('COMMIT'); return result; } catch (error) { this.db.exec('ROLLBACK'); throw error; } }
@@ -81,20 +89,33 @@ export class LearningLibrary {
     }
     return row.id;
   }
-  imports() { return this.db.prepare('SELECT * FROM imports ORDER BY created_at DESC LIMIT 20').all().map(row => { const config = JSON.parse(row.config); return { id: row.id,status: row.status,cursor: row.cursor,items: row.items,error: row.error ? JSON.parse(row.error) : null,kind: config.kind,url: config.url,jobId: config.jobId || null }; }); }
-  previewToken(value) { while (this.previews.size >= 8) this.previews.delete(this.previews.keys().next().value); const id = randomUUID(); this.previews.set(id,{ ...value,expires: Date.now()+600000 }); return id; }
+  imports() {
+    return this.db.prepare('SELECT * FROM imports ORDER BY created_at DESC LIMIT 20').all().map(row => {
+      const config = JSON.parse(row.config), summary = config.summary || {}, crawl = config.kind === 'question' && config.jobId && ['queued','running'].includes(row.status) ? this.manager.jobs?.get(config.jobId) : null;
+      return { id: row.id,status: row.status,cursor: row.cursor,items: row.items,error: row.error ? JSON.parse(row.error) : null,kind: config.kind,url: config.url,jobId: config.jobId || null,title: summary.title || '',expected: config.urls ? config.urls.length : summary.count ?? null,method: summary.method || null,collectionId: config.collectionId ?? null,downloadFiles: Boolean(config.downloadFiles),createdAt: row.created_at,fetched: crawl?.progress?.items ?? null };
+    });
+  }
+  // Preview tokens live in memory for ten minutes. A revision changes whenever the viewed mapping changes.
+  previewToken(value) {
+    for (const [id, preview] of this.previews) if (preview.expires < Date.now()) this.previews.delete(id);
+    while (this.previews.size >= 8) this.previews.delete(this.previews.keys().next().value);
+    const id = randomUUID(); this.previews.set(id,{ ...value,revision: 1,expires: Date.now()+(this.options.previewTtlMs || 600000) }); return id;
+  }
+  publishPreview(config, view) { const token = this.previewToken(config), preview = this.previews.get(token); return { token,revision: preview.revision,expiresAt: new Date(preview.expires).toISOString(),kind: config.kind,...view }; }
+  livePreview(token) { const preview = typeof token === 'string' ? this.previews.get(token) : null; if (!preview) throw new MessageError('learning.previewInvalid'); if (preview.expires < Date.now()) { this.previews.delete(token); throw new MessageError('learning.previewExpired'); } return preview; }
+  discardPreview(token) { return { discarded: this.previews.delete(token) }; }
   async jobPreview(jobId, input = {}) {
     const job = this.manager.get(jobId), records = [];
     for await (const entry of this.datasets.records(job)) { records.push(entry.record); if (records.length === 3) break; }
     if (!records.length) throw new MessageError('learning.questionMissing');
-    const fields = input.fields || questionFields(records[0]), config = { kind: 'question',url: job.config.request.url,jobId,fields };
-    return { token: this.previewToken({ ...config,mappingRecords: this.mappingRecords(records) }), kind: 'question',sample: records.map(record => questionRecord(record,fields)),fields,count: job.progress.items,availableFields: this.fieldNames(records[0]) };
+    const fields = input.fields || questionFields(records[0]), url = job.config.request.url, count = job.progress.items, config = { kind: 'question',url,jobId,fields,summary: { title: job.config.name || '',count,method: 'job' } };
+    return this.publishPreview({ ...config,mappingRecords: this.mappingRecords(records) },{ source: { url,finalUrl: url,title: job.config.name || '' },method: 'job',sample: records.map(record => questionRecord(record,fields)),fields,count,availableFields: this.fieldNames(records[0]),warnings: [] });
   }
   mappingRecords(records) { if (Buffer.byteLength(JSON.stringify(records)) > 512*1024) throw new MessageError('learning.contentLimit');return records; }
   validateFields(fields) { for(const key of ['question','choices','answer','id'])if(typeof fields?.[key]!=='string'||fields[key].length>200)throw new MessageError('learning.invalid');return Object.fromEntries(['question','choices','answer','id'].map(key=>[key,fields[key]])); }
   remapPreview(token,input) {
-    const preview=this.previews.get(token);if(!preview||preview.expires<Date.now())throw new MessageError('learning.previewExpired');
-    if(preview.kind!=='question')throw new MessageError('learning.invalid');const fields=this.validateFields(input.fields),sample=preview.mappingRecords.map(record=>questionRecord(record,fields));preview.fields=fields;return {token,fields,sample};
+    const preview=this.livePreview(token);
+    if(preview.kind!=='question')throw new MessageError('learning.invalid');const fields=this.validateFields(input.fields),sample=preview.mappingRecords.map(record=>questionRecord(record,fields));preview.fields=fields;preview.revision++;return {token,revision:preview.revision,expiresAt:new Date(preview.expires).toISOString(),fields,sample};
   }
   fieldNames(record, prefix = '', depth = 0) { if (!record || typeof record !== 'object' || depth > 4) return []; return Object.entries(record).flatMap(([key,value]) => { const path = prefix ? prefix+'.'+key : key; return /^[\w$-]+$/.test(key) ? [path,...(!Array.isArray(value) ? this.fieldNames(value,path,depth+1) : [])] : []; }).slice(0,100); }
   async preview(input, signal) {
@@ -102,24 +123,46 @@ export class LearningLibrary {
     if (kind === 'question') {
       const report = await scanWebsite(url,this.sessions,()=>{},signal,this.options.scanOptions);
       if (['blocked','login','unknown'].includes(report.capability)) throw new MessageError(report.messageData);
-      const sample = report.sample || [], fields = questionFields(sample[0] || {}), config = { kind,url,fields,jobConfig: report.recommendation };
-      return { token: this.previewToken({ ...config,mappingRecords: this.mappingRecords(sample) }),kind,sample: sample.map(record => questionRecord(record,fields)),fields,count: report.total,availableFields: this.fieldNames(sample[0]) };
+      const sample = report.sample || [], fields = questionFields(sample[0] || {}), method = report.recommendedMode, count = report.total ?? null, source = { url,finalUrl: report.finalUrl || url,title: report.title || '' };
+      const warnings = [...(report.warningMessages || []),...(method === 'browser' ? [msg('learning.warnBrowser')] : [])];
+      return this.publishPreview({ kind,url,fields,jobConfig: report.recommendation,summary: { title: source.title,count,method },mappingRecords: this.mappingRecords(sample) },{ source,method,sample: sample.map(record => questionRecord(record,fields)),fields,count,observed: report.observedRecords ?? sample.length,availableFields: this.fieldNames(sample[0]),warnings });
     }
     if (kind === 'document') {
       const { response } = await fetchResponse({ url,method:'HEAD',headers: await this.authHeaders(url) },{ timeoutMs:15000 },signal);
       await response.body?.cancel(); if (!response.ok && response.status !== 405) throw new MessageError('browser.http',{status:response.status});
-      const record = { title: decodeURIComponent(new URL(url).pathname.split('/').at(-1)) || 'Tài liệu',url,body:'',files:[url],fileEtag:response.headers.get('etag') };
-      return { token:this.previewToken({ kind,url,urls:[url],seed:record }),kind,sample:[record],count:1 };
+      const head = response.ok, type = head ? response.headers.get('content-type') || '' : '', bytes = head ? Number(response.headers.get('content-length')) || null : null, fileName = decodeURIComponent(new URL(url).pathname.split('/').at(-1)) || 'Tài liệu';
+      const record = { title: fileName,url,body:'',files:[url],fileEtag:response.headers.get('etag') }, warnings = head ? (/text\/html/i.test(type) ? [msg('learning.warnHtmlDocument')] : []) : [msg('learning.warnNoHead')];
+      if (bytes > 100*1024*1024) warnings.push(msg('learning.warnLargeFile'));
+      const document = { fileName,contentType: type,bytes,lastModified: head ? response.headers.get('last-modified') || '' : '',etag: Boolean(record.fileEtag) };
+      return this.publishPreview({ kind,url,urls:[url],seeds:[record],summary: { title: fileName,count: 1,method: 'file' } },{ source: { url,finalUrl: response.url || url,title: fileName },method: 'file',sample:[{ title: fileName,url,body: '' }],document,count:1,dataFields: this.presentFields({ title: fileName,url,contentType: type,bytes,lastModified: document.lastModified },['title','url','contentType','bytes','lastModified']),warnings });
     }
     const session = await this.sessions.open(url,{ signal,lightweight:true });
-    try { const record = await readLearningPage(session.page,url,signal), urls = input.scope === 'list' ? [...new Set(record.links.filter(link => !/\.(pdf|docx?|xlsx?|pptx?)(?:[?#]|$)/i.test(link)))] : [url]; if (!urls.length) throw new MessageError('learning.noLinks'); return { token:this.previewToken({ kind,url,urls,seed: input.scope === 'list' ? null : record }),kind,sample:[record],count:urls.length,urls:urls.slice(0,5) }; }
+    try {
+      const record = await readLearningPage(session.page,url,signal), list = input.scope === 'list', warnings = [];
+      if (!list) return this.publishPreview({ kind,url,urls:[url],seeds:[articleRecord(record)],summary: { title: record.title,count: 1,method: 'page' } },{ source: { url,finalUrl: record.url,title: record.title },method: 'page',sample:[articleRecord(record)],count:1,dataFields: this.presentFields(record,ARTICLE_FIELDS),warnings });
+      const urls = [...new Set(record.links.filter(link => !/\.(pdf|docx?|xlsx?|pptx?)(?:[?#]|$)/i.test(link)))]; if (!urls.length) throw new MessageError('learning.noLinks');
+      if (record.links.length >= 100) warnings.push(msg('learning.warnListLimit',{ count: 100 }));
+      // Real samples: the first articles of the list are read now and reused by the import.
+      const seeds = [];
+      for (const link of urls.slice(0, 2)) {
+        signal?.throwIfAborted();
+        try { seeds.push(articleRecord(await readLearningPage(session.page,link,signal))); } catch (error) { if (signal?.aborted) throw error; seeds.push(null); warnings.push(msg('learning.warnSampleFailed',{ url: link,error: errorMessage(error) })); }
+      }
+      const sample = seeds.filter(Boolean);
+      return this.publishPreview({ kind,url,urls,seeds,summary: { title: record.title,count: urls.length,method: 'list' } },{ source: { url,finalUrl: record.url,title: record.title },method: 'list',sample,count: urls.length,urls: urls.slice(0,10),dataFields: this.presentFields(sample[0] || {},ARTICLE_FIELDS),warnings });
+    }
     finally { await session.close(); }
   }
+  presentFields(record, keys) { return keys.map(key => ({ key,present: Array.isArray(record[key]) ? record[key].length > 0 : record[key] != null && record[key] !== '' })); }
+  // Only an explicit confirmation of a live, unchanged preview creates an import; retrying a confirmation returns the original run.
   startImport(input) {
-    const preview = this.previews.get(input.token); if (!preview || preview.expires < Date.now()) throw new MessageError('learning.previewExpired');
-    const { expires,mappingRecords, ...config } = preview; config.collectionId = this.collection(input.collectionId); config.downloadFiles = input.downloadFiles === true;
-    if (input.fields && config.kind === 'question') config.fields=this.validateFields(input.fields);
-    const id = randomUUID(); this.db.prepare("INSERT INTO imports(id,config,status,created_at) VALUES(?,?,'queued',?)").run(id,JSON.stringify(config),now()); this.kick(); return { id,status:'queued' };
+    const existing = typeof input.token === 'string' ? this.db.prepare('SELECT id,status FROM imports WHERE token=?').get(input.token) : null;
+    if (existing) return { id: existing.id,status: existing.status,duplicate: true };
+    const preview = this.livePreview(input.token);
+    if (input.revision !== undefined && input.revision !== preview.revision) throw new MessageError('learning.previewChanged');
+    if (input.fields !== undefined && preview.kind === 'question' && JSON.stringify(this.validateFields(input.fields)) !== JSON.stringify(preview.fields)) throw new MessageError('learning.previewChanged');
+    const { expires,revision,mappingRecords, ...config } = preview; config.collectionId = this.collection(input.collectionId); config.downloadFiles = input.downloadFiles === true;
+    const id = randomUUID(); this.db.prepare("INSERT INTO imports(id,config,status,created_at,token) VALUES(?,?,'queued',?,?)").run(id,JSON.stringify(config),now(),input.token); this.previews.delete(input.token); this.kick(); return { id,status:'queued' };
   }
   async importAction(id, action) {
     const row = this.db.prepare('SELECT * FROM imports WHERE id=?').get(id); if (!row) throw new MessageError('learning.itemMissing');
@@ -150,7 +193,14 @@ export class LearningLibrary {
     const config = JSON.parse(row.config); let cursor = row.cursor, count = row.items, session;this.active.get(row.id).config=config;
     const commit = records => this.transaction(()=>{ for (const record of records) { this.saveRecord(record,config,cursor); cursor++; count++; } this.db.prepare('UPDATE imports SET cursor=?,items=? WHERE id=?').run(cursor,count,row.id); });
     try {
-      if (config.kind === 'question') {
+      if (Array.isArray(config.capturedRecords)) {
+        for (; cursor < config.capturedRecords.length;) {
+          signal.throwIfAborted();
+          commit(config.capturedRecords.slice(cursor, cursor + 100));
+          await new Promise(resolve => setImmediate(resolve));
+        }
+        this.db.prepare("UPDATE imports SET status='completed' WHERE id=?").run(row.id);
+      } else if (config.kind === 'question') {
         let job;
         if (!config.jobId) { job = await this.manager.create({ ...config.jobConfig,download:{...config.jobConfig.download,enabled:false} }); config.jobId=job.id; this.db.prepare('UPDATE imports SET config=? WHERE id=?').run(JSON.stringify(config),row.id); }
         else job=this.manager.get(config.jobId);
@@ -164,7 +214,7 @@ export class LearningLibrary {
         this.db.prepare('UPDATE imports SET status=? WHERE id=?').run(job.status==='completed'?'completed':'incomplete',row.id);
       } else {
         if(config.kind==='article')session=await this.sessions.open(config.url,{signal,lightweight:true});
-        for(;cursor<config.urls.length;){signal.throwIfAborted();const url=config.urls[cursor],record=cursor===0&&config.seed?config.seed:config.kind==='document'?{title:decodeURIComponent(new URL(url).pathname.split('/').at(-1))||'Tài liệu',body:'',url,files:[url]}:await readLearningPage(session.page,url,signal);commit([record]);}
+        for(;cursor<config.urls.length;){signal.throwIfAborted();const url=config.urls[cursor],record=config.seeds?.[cursor]||(cursor===0&&config.seed)||(config.kind==='document'?{title:decodeURIComponent(new URL(url).pathname.split('/').at(-1))||'Tài liệu',body:'',url,files:[url]}:await readLearningPage(session.page,url,signal));commit([record]);}
         this.db.prepare("UPDATE imports SET status='completed' WHERE id=?").run(row.id);
       }
     } finally { await session?.close(); }

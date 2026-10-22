@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="vi">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Cào Cào</title><link rel="stylesheet" href="popup.css"><script type="module" src="popup.js"></script></head>
+<body>
+  <header class="masthead"><div class="brand"><svg viewBox="0 0 40 40" aria-hidden="true"><path d="M8 28 20 15l10 13M12 28l8-7 9 7M20 15l7-5M25 10l5 2M20 21l-5-7M15 14l-4-3"/><circle cx="29" cy="11" r="2"/></svg><strong>Cào Cào</strong></div><button id="language" class="quiet" type="button" aria-label="English">EN</button></header>
+  <main>
+    <div class="intro"><h1 data-t="title">Lưu điều bạn muốn học.</h1><p data-t="intro">Đọc nội dung ngay trong trang bạn đang mở.</p></div>
+    <section class="connection" aria-label="Kết nối thư viện"><span id="connection" role="status"></span><button id="connect" class="quiet" type="button" data-t="connect">Kết nối lại</button><a id="help" href="help.html" target="_blank" data-t="help" hidden>Cách kết nối</a></section>
+    <p id="error" class="error" role="alert" hidden></p>
+    <section id="source-section"><p id="active-title" class="source-title"></p><p id="active-host" class="muted source-host"></p><p id="unsupported" class="hint" data-t="unsupported" hidden></p>
+      <details class="options"><summary data-t="options">Cách đọc</summary><label for="mode" data-t="mode">Loại nội dung</label><select id="mode"><option value="auto" data-t="auto">Tự nhận diện</option><option value="article" data-t="article">Bài viết</option><option value="question" data-t="question">Bảng, danh sách hoặc bộ thẻ</option></select><label class="check"><input id="auto-more" type="checkbox" checked><span data-t="more">Tự tải thêm nội dung</span></label></details>
+      <button id="start" class="primary wide" type="button" data-t="read">Đọc trang</button>
+      <div id="replace" class="warning" hidden><p data-t="replace"></p><div class="actions"><button id="replace-yes" type="button" data-t="replaceYes"></button><button id="replace-no" type="button" data-t="replaceNo"></button></div></div>
+    </section>
+    <section id="capture" hidden>
+      <div class="capture-heading"><h2 id="status" aria-live="polite"></h2><span id="count" class="count"></span></div>
+      <p id="capture-title" class="source-title"></p><p id="counts" class="hint"></p><progress id="progress" aria-label="Tiến độ đọc"></progress><p id="reason" class="hint" aria-live="polite" hidden></p>
+      <p id="completeness" class="warning" hidden></p>
+      <div class="actions"><button id="pause" type="button" data-t="pause">Tạm dừng</button><button id="resume" type="button" data-t="resume">Đọc tiếp</button><button id="focus" type="button" data-t="focus">Mở tab cần xử lý</button></div>
+      <details id="sample-details" class="samples" open><summary data-t="sample">Mẫu đã đọc</summary><div id="samples"></div><p class="hint" data-t="sampleHint"></p></details>
+      <div id="destination-area"><label for="collection" data-t="destination">Lưu vào bộ sưu tập</label><select id="collection"></select>
+        <details class="new-collection"><summary data-t="newCollection">Tạo bộ sưu tập</summary><form id="collection-form"><label class="visually-hidden" for="collection-name" data-t="collectionName">Tên bộ sưu tập</label><div class="inline"><input id="collection-name" type="text" maxlength="100" required><button type="submit" data-t="create">Tạo</button></div></form></details>
+        <button id="save" class="primary wide" type="button" data-t="save">Lưu vào thư viện</button>
+      </div>
+      <div class="bottom-actions"><button id="open-library" type="button" class="quiet" data-t="openLibrary">Mở thư viện</button><button id="export" type="button" class="quiet" data-t="export">Xuất bản đọc JSON</button></div>
+    </section>
+  </main>
+  <footer data-t="local">Nội dung được giữ trên máy. Phiên đăng nhập ở lại trong trình duyệt.</footer>
+</body></html>

@@ -19,6 +19,41 @@ Mở địa chỉ được in trong terminal, mặc định `http://127.0.0.1:43
 
 Nếu không có Chrome/Edge, chạy `npx playwright install chromium`. Có thể chọn trình duyệt qua biến `CAOCAO_BROWSER=chrome` hoặc `msedge`.
 
+## Tiện ích Chrome / Edge (0.1.0 · Windows)
+
+Đọc từ tab bạn đang mở và phiên đăng nhập hiện tại. Bản xem trước được giữ nguyên khi lưu; ứng dụng không mở lại website để lấy dữ liệu lần nữa.
+
+### Cài lần đầu
+
+1. Đóng phiên Cào Cào cũ nếu đang cập nhật. Nhấp đúp **install-extension.cmd** trong thư mục ứng dụng (cần Node.js 22.13 trở lên). Bộ cài chuẩn bị extension và đăng ký kết nối Native Messaging trong tài khoản Windows hiện tại, không cần quyền quản trị.
+2. Mở `chrome://extensions` hoặc `edge://extensions`, bật **Developer mode**, chọn **Load unpacked** rồi chọn thư mục `extension` vừa mở.
+3. Ghim biểu tượng Cào Cào. Những lần sau: mở website → bấm biểu tượng → **Đọc trang** → kiểm tra mẫu → **Lưu vào thư viện**. Tiện ích tự mở ứng dụng cục bộ nếu ứng dụng chưa chạy.
+
+Ứng dụng có trang **Tiện ích trình duyệt** tại `/extension`, với nút cài kết nối và tải ZIP. Tạo lại gói bằng `npm run build:extension`; kết quả ở `dist/CaoCao-Extension-0.1.0.zip`. Bản này chưa phát hành lên Chrome Web Store. Giữ thư mục ứng dụng và extension ở vị trí đã cài; nếu di chuyển ứng dụng hoặc Node.js, chạy lại bộ cài.
+
+### Nội dung và phục hồi
+
+- Tự nhận diện bài viết, bảng, danh sách câu hỏi và cặp thuật ngữ/định nghĩa trong DOM Quizlet; có lựa chọn loại nội dung khi nhận diện chưa đúng. Không đọc cookie, input mật khẩu hoặc token đăng nhập; các tham số URL đăng nhập/tracking thường gặp được loại trước khi lưu.
+- Tự bấm nút tải thêm/trang kế tiếp cùng website hoặc cuộn vùng nội dung. Có **Tạm dừng**, **Đọc tiếp**, bộ sưu tập và giao diện Việt/Anh. Khi trang yêu cầu đăng nhập hoặc xác minh, người dùng hoàn thành trong tab nguồn, sau đó extension đọc tiếp khi có quyền truy cập.
+- Bản đang đọc nằm trong `chrome.storage.local` và vẫn còn khi đóng popup. Nếu trình duyệt/service worker bị ngắt, bản đọc được khôi phục ở trạng thái tạm dừng. Giữ tab nguồn mở để đọc tiếp; có thể lưu hoặc xuất JSON phần đã đọc khi tab đã đóng.
+- Xem trước trên máy không tạo mục thư viện. Khi xác nhận, nội dung đã xem được nhập bền vững vào SQLite; xác nhận lặp trả về cùng lượt nhập. Mẫu phía ứng dụng có hiệu lực 24 giờ; mẫu hết hạn cần tạo lại từ bản đọc còn giữ trong extension.
+- Mỗi bản đọc tối đa **5.000 mục / 4 MiB**; mỗi lượt tối đa **120 thao tác / 5 phút**. Dừng chờ đăng nhập/xác minh sau 15 phút. Chỉ xác nhận đủ khi số mục khớp tổng nguồn cung cấp; tổng chưa biết vẫn được ghi rõ. Bài viết là ảnh chụp văn bản đã hiển thị tại lúc đọc, không chứng minh toàn bộ nội dung của bài gốc.
+- Chỉ đọc nội dung DOM truy cập được trong tab HTTP/HTTPS. Nội dung trong iframe khác nguồn, shadow DOM đóng, trình xem PDF, nội dung chưa tải hoặc bố cục riêng có thể cần bộ đọc bổ sung. Extension không bảo đảm vượt chặn truy cập hay lấy đủ dữ liệu trên mọi website.
+
+Gỡ kết nối: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install-extension.ps1 -Uninstall`, rồi gỡ tiện ích trong trình duyệt. Lệnh này giữ dữ liệu thư viện.
+
+### Kiểm thử extension
+
+Chạy `npm run test:extension` sau khi cài Playwright Chromium (`npx playwright install chromium`). Kiểm thử dùng thư viện QA riêng. Trên Windows, kiểm thử Native Messaging thật là tùy chọn:
+
+```powershell
+$env:CAOCAO_TEST_NATIVE_REGISTRY = '1'
+npm run test:extension
+Remove-Item Env:CAOCAO_TEST_NATIVE_REGISTRY
+```
+
+Kiểm thử này đăng ký tạm đúng host Cào Cào trong Chromium của tài khoản hiện tại, sao lưu/khôi phục khóa cũ và dùng dữ liệu `.qa/` riêng. Luồng MV3 dùng manifest thật và quyền `activeTab` được cấp qua hành động extension. Trang QA mô phỏng tải chậm, xác minh và DOM Quizlet; kết quả đó không chứng minh tương thích với phiên Quizlet đã đăng nhập ngoài thực tế. Theo dõi tại [#13](https://github.com/vankhoa-gubit/CaoCao-Tool/issues/13), [#14](https://github.com/vankhoa-gubit/CaoCao-Tool/issues/14), [#15](https://github.com/vankhoa-gubit/CaoCao-Tool/issues/15), [#16](https://github.com/vankhoa-gubit/CaoCao-Tool/issues/16).
+
 ## Thư viện học tập (1.4.0)
 
 Mở tab **Thư viện học tập**, hoặc thêm `/#library` vào địa chỉ ứng dụng.

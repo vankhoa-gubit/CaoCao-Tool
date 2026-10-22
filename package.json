@@ -12,7 +12,9 @@
     "test": "node --test --test-concurrency=2 test/*.test.mjs",
     "benchmark:startup": "node scripts/benchmark-startup.mjs",
     "benchmark:learning": "node scripts/benchmark-learning.mjs",
-    "crawl": "node src/cli.mjs"
+    "crawl": "node src/cli.mjs",
+    "build:extension": "node scripts/build-extension.mjs",
+    "test:extension": "node --test --test-concurrency=1 test/extension*.test.mjs"
   },
   "dependencies": {
     "playwright": "^1.63.0"

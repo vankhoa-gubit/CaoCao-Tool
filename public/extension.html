@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Cào Cào trong trình duyệt</title><link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="/extension.css"><script type="module" src="/extension-setup.js"></script></head>
+<body><main class="extension-setup">
+  <div class="setup-nav"><a href="/#library" data-setup="home">Cào Cào / Thư viện</a><button id="setup-language" type="button" aria-label="Language">EN</button></div>
+  <header><h1 data-setup="title">Lưu ngay từ trang bạn đang đọc.</h1><p data-setup="intro"></p></header>
+  <p id="setup-status" role="status"></p>
+  <ol class="setup-steps">
+    <li><h2 data-setup="connectionTitle"></h2><p data-setup="connectionHint"></p><button id="install-connection" type="button" class="primary" data-setup="install"></button><p class="hint" data-setup="installerHint"></p></li>
+    <li><h2 data-setup="extensionTitle"></h2><p data-setup="development"></p><p data-setup="loadUnpacked"></p>
+      <div class="path-row"><input id="extension-path" type="text" readonly aria-label="Extension folder"><button id="copy-extension-path" type="button" data-setup="copy"></button></div>
+      <p class="hint"><a href="/extension-download" data-setup="download"></a> <span data-setup="zipHint"></span></p>
+    </li>
+    <li><h2 data-setup="usageTitle"></h2><p data-setup="usage"></p><p class="hint" data-setup="manual"></p></li>
+  </ol>
+  <section><h2 data-setup="privacyTitle"></h2><p data-setup="privacy"></p><p class="hint" data-setup="limits"></p></section>
+  <p><a href="/#library" data-setup="back"></a></p>
+</main></body></html>

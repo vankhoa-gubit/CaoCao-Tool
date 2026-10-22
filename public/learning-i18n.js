@@ -1,4 +1,5 @@
 export const learningStrings = {
+  'learn.extension':['Lưu từ trang đang mở bằng tiện ích Chrome / Edge','Save from the current tab with the Chrome / Edge extension'],
   'learn.nav':['Thư viện học tập','Learning library'],
   'learn.title':['Giữ lại điều bạn muốn học.','Keep what you want to learn.'],
   'learn.intro':['Lưu bài viết, tài liệu và câu hỏi vào thư viện trên máy. Mở lại, ghi chú và học theo cách của bạn.','Save articles, documents and questions to your local library. Read, annotate and study at your own pace.'],
@@ -32,6 +33,13 @@ export const learningStrings = {
   'learn.export':['Xuất nội dung đang lọc','Export filtered content'], 'learn.exportItem':['Xuất nội dung này','Export this item'], 'learn.previous':['Trước','Previous'], 'learn.next':['Sau','Next'], 'learn.login':['Mở trang để đăng nhập','Open page to sign in'], 'learn.saveLogin':['Lưu phiên và xem lại mẫu','Save session and preview again'],
 };
 export const learningMessages = {
+  'learning.captureInvalid':['Dữ liệu từ trình duyệt chưa hợp lệ. Đọc lại trang và kiểm tra mẫu.','Browser content is invalid. Read the page again and check the preview.'],
+  'learning.captureLimit':['Đã đạt giới hạn 5.000 mục hoặc 4 MB. Lưu phần đã đọc trước khi đọc tiếp.','The capture limit is 5,000 items or 4 MB. Save the captured content before collecting more.'],
+  'learning.captureMissing':['Không còn thấy bản xem trước này. Đọc lại từ tiện ích Cào Cào.','This preview is no longer available. Read the page again from the Cào Cào extension.'],
+  'learning.captureExpired':['Bản xem trước đã quá 24 giờ. Đọc lại trang trước khi lưu.','This preview is older than 24 hours. Read the page again before saving.'],
+  'learning.captureCapacity':['Có 8 bản xem trước chưa lưu. Lưu hoặc bỏ một bản trước khi đọc thêm.','There are 8 unsaved previews. Save or discard one before collecting more.'],
+  'learning.extensionAuth':['Chưa kết nối được tiện ích. Chạy bộ cài kết nối Cào Cào rồi thử lại.','The extension is not connected. Run the Cào Cào connection installer and try again.'],
+  'learning.extensionRestart':['Đóng phiên Cào Cào cũ, mở lại ứng dụng rồi kết nối lại tiện ích.','Close the older Cào Cào application, reopen it, then reconnect the extension.'],
   'learning.invalid':['Thông tin chưa hợp lệ. Kiểm tra tên, đường dẫn và bộ lọc.','Invalid input. Check the name, URL and filters.'],
   'learning.collectionMissing':['Bộ sưu tập không còn tồn tại. Chọn lại bộ sưu tập.','This collection no longer exists. Choose another collection.'],
   'learning.collectionExists':['Tên bộ sưu tập đã được dùng. Chọn tên khác.','This collection name is already in use. Choose another name.'],

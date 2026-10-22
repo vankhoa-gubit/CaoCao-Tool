@@ -25,10 +25,12 @@
 
   <div id="notice" class="global-notice" role="alert" hidden></div>
   <nav class="workspace-nav" aria-label="Khu vực làm việc" data-i18n-aria-label="workspace.nav">
+    <a href="/" data-i18n="site.home">Trang chủ</a>
     <button type="button" data-panel="library" aria-pressed="false" data-i18n="learn.nav">Thư viện học tập</button>
     <button type="button" data-panel="quick" aria-pressed="true" data-i18n="workspace.quick">Tải nhanh</button>
     <button type="button" data-panel="sources" aria-pressed="false" data-i18n="workspace.sources">Nguồn &amp; hàng đợi</button>
     <button type="button" data-panel="data" aria-pressed="false" data-i18n="workspace.data">Xem dữ liệu</button>
+    <a href="/extension" class="workspace-extension-link" data-i18n="site.extension">Tải tiện ích Chrome</a>
   </nav>
   <main>
   <section id="library-panel" class="learning-panel" hidden aria-labelledby="learning-title">
@@ -36,6 +38,7 @@
     <div class="learning-layout">
       <aside class="learning-add" aria-labelledby="learning-add-title">
         <h2 id="learning-add-title" data-i18n="learn.add">Thêm nội dung</h2>
+        <div class="learning-extension-callout"><strong data-i18n="learn.extension">Lưu từ trang đang mở bằng tiện ích Chrome / Edge</strong><p data-i18n="learn.extensionWhy">Đọc nội dung trong tab đã đăng nhập, xem mẫu rồi lưu vào cùng thư viện.</p><a href="/extension" data-i18n="learn.extensionSetup">Tải tiện ích và xem cách cài</a><span data-i18n="learn.extensionOptional">Tùy chọn. Bạn vẫn có thể dán đường dẫn bên dưới.</span></div>
         <form id="learning-form">
           <label for="learning-url" data-i18n="learn.url">Đường dẫn nội dung</label><input id="learning-url" type="url" required placeholder="https://…" autocomplete="url">
           <label for="learning-kind" data-i18n="learn.kind">Bạn muốn lưu gì?</label><select id="learning-kind"><option value="article" data-i18n="learn.article">Bài viết</option><option value="document" data-i18n="learn.document">Tài liệu / PDF</option><option value="question" data-i18n="learn.question">Câu hỏi</option></select>

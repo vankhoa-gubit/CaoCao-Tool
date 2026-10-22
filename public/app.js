@@ -297,7 +297,8 @@ $('save-analysis').addEventListener('click', () => workspace.guard(() => {
   return workspace.prefill({ ...value, limits: { ...value.limits, maxRequests: Number($('max-requests').value) }, download: { ...value.download, enabled: $('download-files').checked } }, report.url, mode);
 }));
 setLanguage(state.language, false);
-if (location.hash === '#library') workspace.showPanel('library');
+if (['#library', '#quick', '#sources', '#data'].includes(location.hash)) workspace.showPanel(location.hash.slice(1));
+window.addEventListener('hashchange', () => { if (['#library', '#quick', '#sources', '#data'].includes(location.hash)) workspace.showPanel(location.hash.slice(1)); });
 document.addEventListener('visibilitychange', () => schedulePoll(document.hidden ? 60000 : 0));
 window.addEventListener('online', () => schedulePoll(0));
 window.addEventListener('pagehide', () => clearTimeout(pollTimer));

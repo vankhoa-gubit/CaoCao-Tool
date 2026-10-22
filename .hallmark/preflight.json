@@ -1,0 +1,9 @@
+{
+  "date": "2026-10-22",
+  "framework": "vanilla HTML, CSS and ES modules",
+  "fonts": "Segoe UI, Tahoma, sans-serif; inherited from public/style.css",
+  "palette": "Existing cloud, paper, ink and petrol CSS variables",
+  "motion": "No motion library; user-triggered answer reveal only",
+  "scope": "Home introduction, extension download and setup, application navigation",
+  "preserved": ["brand", "font stack", "palette", "application panels", "library"]
+}

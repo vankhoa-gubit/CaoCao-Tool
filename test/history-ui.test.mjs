@@ -30,7 +30,7 @@ before(async () => {
 after(async () => { await ui?.close(); await app?.close(); });
 
 test('History reaches older runs, searches/filters and keeps focus/data while switching language', async () => {
-  await ui.page.goto(origin);
+  await ui.page.goto(origin + '/app');
   await until(() => ui.page.locator('#job-list button').count(), value => value === 15);
   assert.match(await ui.page.locator('#history-page').innerText(), /1\/3.*37/);
   await ui.page.locator('#history-next').click();
@@ -88,7 +88,7 @@ test('Idle polling skips unchanged details, backs off in hidden tabs and refresh
     else if (/^\/api\/jobs\/[a-z0-9-]+$/.test(path)) details++;
   });
   try {
-    await page.clock.install(); await page.goto(origin);
+    await page.clock.install(); await page.goto(origin + '/app');
     await until(() => page.locator('#connection-label').innerText(), value => ['Đang chạy cục bộ', 'Running locally'].includes(value));
     assert.equal(lists, 1); assert.equal(details, 1);
     await page.clock.fastForward(12000); assert.equal(lists, 1);

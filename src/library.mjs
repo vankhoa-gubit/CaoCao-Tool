@@ -8,6 +8,7 @@ import { msg, MessageError, errorMessage } from './messages.mjs';
 import { fetchResponse, retryFetch } from './net.mjs';
 import { scanWebsite } from './browser.mjs';
 import { readLearningPage, questionFields, questionRecord } from './learning-extract.mjs';
+import { initCaptureStore } from './capture.mjs';
 
 const digest = value => createHash('sha256').update(value).digest('hex');
 const now = () => new Date().toISOString();
@@ -36,6 +37,7 @@ export class LearningLibrary {
     // A confirmed preview token is stored with its import so a repeated confirmation returns the same run.
     if (!this.db.prepare('PRAGMA table_info(imports)').all().some(column => column.name === 'token')) this.db.exec('ALTER TABLE imports ADD COLUMN token TEXT');
     this.db.exec('CREATE UNIQUE INDEX IF NOT EXISTS imports_token ON imports(token)');
+    initCaptureStore(this.db);
     return this;
   }
   transaction(fn) { this.db.exec('BEGIN IMMEDIATE'); try { const result = fn(); this.db.exec('COMMIT'); return result; } catch (error) { this.db.exec('ROLLBACK'); throw error; } }
@@ -191,7 +193,14 @@ export class LearningLibrary {
     const config = JSON.parse(row.config); let cursor = row.cursor, count = row.items, session;this.active.get(row.id).config=config;
     const commit = records => this.transaction(()=>{ for (const record of records) { this.saveRecord(record,config,cursor); cursor++; count++; } this.db.prepare('UPDATE imports SET cursor=?,items=? WHERE id=?').run(cursor,count,row.id); });
     try {
-      if (config.kind === 'question') {
+      if (Array.isArray(config.capturedRecords)) {
+        for (; cursor < config.capturedRecords.length;) {
+          signal.throwIfAborted();
+          commit(config.capturedRecords.slice(cursor, cursor + 100));
+          await new Promise(resolve => setImmediate(resolve));
+        }
+        this.db.prepare("UPDATE imports SET status='completed' WHERE id=?").run(row.id);
+      } else if (config.kind === 'question') {
         let job;
         if (!config.jobId) { job = await this.manager.create({ ...config.jobConfig,download:{...config.jobConfig.download,enabled:false} }); config.jobId=job.id; this.db.prepare('UPDATE imports SET config=? WHERE id=?').run(JSON.stringify(config),row.id); }
         else job=this.manager.get(config.jobId);

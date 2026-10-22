@@ -38,9 +38,10 @@ export async function createApp({ dataDirectory = join(projectRoot, 'data'), ses
   const datasets = new DatasetService(manager);
   const library = await new LearningLibrary(join(dataDirectory, 'library'), manager, datasets, sessions, { scanOptions }).init();
   const extensionBridge = await new ExtensionBridge(dataDirectory, library).init();
-  const staticFiles = { '/': ['index.html', 'text/html; charset=utf-8'], '/app.js': ['app.js', 'text/javascript; charset=utf-8'], '/workspace.js': ['workspace.js', 'text/javascript; charset=utf-8'], '/workspace-i18n.js': ['workspace-i18n.js', 'text/javascript; charset=utf-8'], '/i18n.js': ['i18n.js', 'text/javascript; charset=utf-8'], '/messages.js': ['messages.js', 'text/javascript; charset=utf-8'], '/style.css': ['style.css', 'text/css; charset=utf-8'] };
+  const staticFiles = { '/': ['home.html', 'text/html; charset=utf-8'], '/app.js': ['app.js', 'text/javascript; charset=utf-8'], '/workspace.js': ['workspace.js', 'text/javascript; charset=utf-8'], '/workspace-i18n.js': ['workspace-i18n.js', 'text/javascript; charset=utf-8'], '/i18n.js': ['i18n.js', 'text/javascript; charset=utf-8'], '/messages.js': ['messages.js', 'text/javascript; charset=utf-8'], '/style.css': ['style.css', 'text/css; charset=utf-8'] };
   Object.assign(staticFiles, { '/learning.js': ['learning.js','text/javascript; charset=utf-8'], '/learning-i18n.js': ['learning-i18n.js','text/javascript; charset=utf-8'], '/learning.css': ['learning.css','text/css; charset=utf-8'] });
   Object.assign(staticFiles, { '/extension': ['extension.html','text/html; charset=utf-8'], '/extension.css': ['extension.css','text/css; charset=utf-8'], '/extension-setup.js': ['extension-setup.js','text/javascript; charset=utf-8'] });
+  Object.assign(staticFiles, { '/app': ['index.html','text/html; charset=utf-8'], '/home.js': ['home.js','text/javascript; charset=utf-8'], '/site.css': ['site.css','text/css; charset=utf-8'], '/tokens.css': ['tokens.css','text/css; charset=utf-8'] });
   const server = http.createServer(async (request, response) => {
     const json = (value, status = 200) => { response.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }); response.end(JSON.stringify(value)); };
     try {
@@ -194,7 +195,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   app = await createApp({ dataDirectory: process.env.CAOCAO_DATA_DIR || join(projectRoot, 'data') }); const url = await listen(app, port);
   console.log(`Cào Cào đang chạy tại ${url}\nDữ liệu lưu tại ${join(projectRoot, 'data')}\nNhấn Ctrl+C để dừng và lưu các tác vụ.`);
   if (process.argv.includes('--open')) {
-    const startUrl = url + '/#library';
+    const startUrl = url + '/';
     const child = process.platform === 'win32' ? spawn('cmd.exe', ['/c', 'start', '', startUrl], { windowsHide: true, detached: true, stdio: 'ignore' }) : spawn('xdg-open', [startUrl], { detached: true, stdio: 'ignore' });
     child.on('error', () => {}); child.unref();
   }

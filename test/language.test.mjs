@@ -30,7 +30,7 @@ before(async () => {
 after(async () => { await ui?.close(); await app?.close(); });
 
 test('Language buttons work by keyboard and preserve entered data', async () => {
-  await ui.page.goto(origin);
+  await ui.page.goto(origin + '/app');
   assert.equal(await ui.page.locator('html').getAttribute('lang'), 'vi');
   assert.equal(await languageButton('vi').getAttribute('aria-pressed'), 'true');
   await ui.page.locator('#site-url').fill(origin + '/demo/infinite');
@@ -66,7 +66,7 @@ test('Language changes in another tab update the current tab without resetting i
   const otherPage = await ui.context.newPage();
   const input = await ui.page.locator('#config-editor').inputValue();
   try {
-    await otherPage.goto(origin);
+    await otherPage.goto(origin + '/app');
     await otherPage.locator('[data-language="en"]').click();
     await until(() => ui.page.locator('html').getAttribute('lang'), value => value === 'en');
     assert.equal(await ui.page.locator('#config-editor').inputValue(), input);
@@ -194,7 +194,7 @@ test('Unavailable localStorage and a disconnected server do not break the switch
   try {
     await context.addInitScript(() => { Object.defineProperty(window, 'localStorage', { get() { throw new DOMException('Storage disabled', 'SecurityError'); } }); });
     await page.route('**/api/jobs**', route => route.abort());
-    await page.goto(origin);
+    await page.goto(origin + '/app');
     await until(() => page.locator('#connection-label').innerText(), value => value === 'Mất kết nối máy chủ');
     await page.locator('[data-language="en"]').click();
     assert.equal(await page.locator('html').getAttribute('lang'), 'en');
@@ -213,7 +213,7 @@ test('Locale formats large counters while preserving custom names and source tex
     const job = { ...data.jobs[0], name: 'Tên tác vụ của người dùng', progress: { ...data.jobs[0].progress, items: 1234, total: 5678 }, samples: [{ text: 'Nội dung nguồn tiếng Việt' }] };
     await page.route('**/api/jobs?**', route => route.fulfill({ json: { jobs: [job], pagination: { page: 1, pages: 1, total: 1, limit: 15 }, activity: { running: 0 } } }));
     await page.route('**/api/jobs/' + job.id, route => route.fulfill({ json: job }));
-    await page.goto(origin);
+    await page.goto(origin + '/app');
     await until(() => page.locator('#job-items').innerText(), value => value === '1.234 / 5.678');
     await page.locator('[data-language="en"]').click();
     assert.equal(await page.locator('#job-items').innerText(), '1,234 / 5,678');

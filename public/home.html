@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Cào Cào giúp bạn lưu bài viết, tài liệu và bộ câu hỏi vào thư viện trên máy. Đọc lại, ghi chú và ôn bằng thẻ. Có tiện ích dành cho Chrome và Edge.">
+  <title>Cào Cào · Thư viện cho điều bạn muốn học</title>
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/site.css">
+  <script type="module" src="/home.js"></script>
+</head>
+<body class="site-page">
+  <a class="skip-link" href="#main-content" data-home="skip">Đến nội dung</a>
+  <header class="site-header">
+    <a class="brand" href="/" aria-label="Cào Cào">
+      <svg viewBox="0 0 44 44" aria-hidden="true"><path d="M9 29 18 18l12 8M18 18l-6-8M18 18l15-4 4 5M30 26l-3 10M18 24l-7 12M29 14l1-7M33 15l6-5"/><circle cx="32" cy="19" r="2"/></svg>
+      <span>Cào Cào</span>
+    </a>
+    <nav class="site-nav" aria-label="Điều hướng chính" data-home-aria="navigation">
+      <a href="#how-it-works" data-home="howLink">Cách dùng</a>
+      <a href="#browser-extension" data-home="extensionLink">Tiện ích Chrome</a>
+      <a class="site-button site-button-small" href="/app#library" data-home="openLibrary">Mở thư viện</a>
+    </nav>
+    <div class="language-switch" role="group" aria-label="Chọn ngôn ngữ" data-home-aria="language">
+      <button type="button" data-home-language="vi" lang="vi" aria-pressed="true">VI</button>
+      <button type="button" data-home-language="en" lang="en" aria-pressed="false">EN</button>
+    </div>
+  </header>
+
+  <main id="main-content" class="site-main" tabindex="-1">
+    <section class="home-hero" aria-labelledby="home-title">
+      <div class="home-intro">
+        <h1 id="home-title" data-home="title">Gom điều hay. Học theo cách của bạn.</h1>
+        <p class="site-lede" data-home="intro">Bài viết muốn đọc lại, tài liệu cần ghi chú, bộ câu hỏi đang ôn. Cào Cào giữ chúng trong một thư viện trên máy bạn.</p>
+        <div class="site-actions">
+          <a class="site-button" href="/app#library" data-home="openLibrary">Mở thư viện</a>
+          <a class="site-button site-button-outline" href="/extension-download" download data-home="download">Tải tiện ích ZIP</a>
+        </div>
+        <p class="site-caption" data-home="optional">Dùng website ngay, không bắt buộc cài tiện ích. Tiện ích dành cho Chrome / Edge trên Windows.</p>
+        <a class="site-text-link" href="/extension" data-home="installGuide">Xem hướng dẫn cài tiện ích</a>
+      </div>
+      <section class="home-study" aria-labelledby="study-title">
+        <div class="study-heading"><h2 id="study-title" data-home="studyTitle">Thử một thẻ học</h2><span data-home="sample">Nội dung minh họa</span></div>
+        <div class="study-card">
+          <span class="study-card-type" data-home="questionLabel">Câu hỏi</span>
+          <p class="study-question" data-home="question">Nội dung đã lưu trong Cào Cào nằm ở đâu?</p>
+          <div id="sample-answer" class="study-answer" hidden><p data-home="answer">Trong thư viện trên máy của bạn. Bạn có thể mở lại, thêm ghi chú và xuất nội dung đã lưu.</p></div>
+          <button id="reveal-sample" type="button" aria-expanded="false" aria-controls="sample-answer" data-home="reveal">Xem đáp án</button>
+        </div>
+        <p class="study-footnote" data-home="studyHint">Lưu nội dung trước. Đọc và ôn lại khi bạn cần.</p>
+      </section>
+    </section>
+
+    <section id="how-it-works" class="home-workflow" aria-labelledby="workflow-title">
+      <div class="section-introduction"><h2 id="workflow-title" data-home="workflowTitle">Từ một đường dẫn đến góc học riêng.</h2><p data-home="workflowIntro">Bắt đầu với nội dung bạn đang quan tâm. Phần còn lại nằm trong cùng một thư viện.</p></div>
+      <ol class="workflow-steps">
+        <li><h3 data-home="step1Title">Chọn điều muốn giữ</h3><p data-home="step1">Dán đường dẫn vào website hoặc dùng tiện ích để đọc trang đang mở.</p></li>
+        <li><h3 data-home="step2Title">Xem mẫu rồi lưu</h3><p data-home="step2">Kiểm tra nội dung nhận được và chọn bộ sưu tập trước khi thêm vào thư viện.</p></li>
+        <li><h3 data-home="step3Title">Đọc, ghi chú, ôn lại</h3><p data-home="step3">Tìm theo chủ đề, ghi lại ý riêng, học câu hỏi bằng thẻ hoặc xuất tài liệu.</p></li>
+      </ol>
+    </section>
+
+    <section id="browser-extension" class="home-extension" aria-labelledby="extension-title">
+      <div class="extension-explanation">
+        <div class="browser-label" aria-label="Chrome và Microsoft Edge"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.5"/><path d="M12 8.5h8M9 13.7l-4-7M14 15l-4 6"/></svg><span>Chrome / Edge</span></div>
+        <h2 id="extension-title" data-home="extensionTitle">Đang đọc trên web? Lưu ngay từ tab đó.</h2>
+        <p data-home="extensionIntro">Một số trang yêu cầu đăng nhập hoặc chặn lượt quét URL tự động. Tiện ích đọc nội dung đã hiển thị trong tab bạn đang dùng, giúp giảm việc đăng nhập và mở lại trang.</p>
+        <div class="site-actions"><a class="site-button" href="/extension-download" download data-home="download">Tải tiện ích ZIP</a><a class="site-text-link" href="/extension" data-home="setupLink">Cách cài trên Chrome / Edge</a></div>
+        <p class="site-caption" data-home="development">Bản phát triển, cài thủ công một lần. Chưa phát hành lên Chrome Web Store.</p>
+      </div>
+      <dl class="extension-benefits">
+        <div><dt data-home="benefit1Title">Dùng trang đang đăng nhập</dt><dd data-home="benefit1">Đọc nội dung bạn đã mở được trong trình duyệt; xử lý đăng nhập hoặc xác minh ngay tại tab nguồn khi cần.</dd></div>
+        <div><dt data-home="benefit2Title">Bớt sao chép thủ công</dt><dd data-home="benefit2">Đọc bài viết, bảng, danh sách và bộ thẻ được hỗ trợ. Có thể tải thêm nội dung trong cùng lượt đọc.</dd></div>
+        <div><dt data-home="benefit3Title">Xem trước, lưu cùng thư viện</dt><dd data-home="benefit3">Kiểm tra mẫu rồi chọn nơi lưu. Bản đã xem được nhập trực tiếp, không quét lại website khi xác nhận.</dd></div>
+        <div><dt data-home="benefit4Title">Bạn chủ động chọn trang cần đọc</dt><dd data-home="benefit4">Quyền đọc tab được cấp khi bạn bấm tiện ích. Cookie, mật khẩu và token đăng nhập không được gửi sang Cào Cào.</dd></div>
+      </dl>
+    </section>
+
+    <section class="home-comparison" aria-labelledby="comparison-title">
+      <h2 id="comparison-title" data-home="comparisonTitle">Chọn cách phù hợp với trang bạn muốn lưu.</h2>
+      <div class="comparison-scroll" role="region" aria-labelledby="comparison-title" tabindex="0">
+        <table class="site-comparison"><thead><tr><th scope="col" data-home="comparisonNeed">Bạn muốn</th><th scope="col" data-home="website">Website Cào Cào</th><th scope="col" data-home="withExtension">Thêm tiện ích Chrome / Edge</th></tr></thead><tbody>
+          <tr><th scope="row" data-home="compareLibrary">Đọc, tìm kiếm, ghi chú, học bằng thẻ</th><td data-home="available">Có sẵn</td><td data-home="sameLibrary">Dùng cùng thư viện</td></tr>
+          <tr><th scope="row" data-home="compareUrl">Lưu từ đường dẫn</th><td data-home="urlAccess">Khi nguồn cho phép truy cập</td><td data-home="tabAccess">Thêm cách đọc tab đang mở</td></tr>
+          <tr><th scope="row" data-home="compareLogin">Lưu nội dung trong tab đã đăng nhập</th><td data-home="separateSession">Có thể cần đăng nhập riêng</td><td data-home="existingSession">Dùng nội dung đang hiển thị</td></tr>
+          <tr><th scope="row" data-home="compareSetup">Chuẩn bị lần đầu</th><td data-home="runApp">Mở ứng dụng Cào Cào</td><td data-home="oneTimeSetup">Cài tiện ích và kết nối một lần trên Windows</td></tr>
+        </tbody></table>
+      </div>
+      <p class="site-caption" data-home="accessLimit">Tiện ích không bảo đảm đọc được mọi website hoặc vượt mọi cơ chế chặn. Bạn cần có quyền xem nội dung; đăng nhập và CAPTCHA vẫn do bạn thực hiện.</p>
+    </section>
+
+    <section class="home-faq" aria-labelledby="faq-title">
+      <h2 id="faq-title" data-home="faqTitle">Trước khi bắt đầu</h2>
+      <div><details><summary data-home="faq1Title">Không cài tiện ích có dùng được không?</summary><p data-home="faq1">Có. Thư viện, ghi chú, tìm kiếm, flashcard, xuất dữ liệu và quét URL khi nguồn cho phép vẫn hoạt động. Tiện ích chỉ bổ sung cách lưu từ trình duyệt.</p></details>
+        <details><summary data-home="faq2Title">Tải ZIP xong có dùng ngay được không?</summary><p data-home="faq2">Bạn cần giải nén, cài kết nối với Cào Cào và nạp thư mục tiện ích trong Chrome hoặc Edge. Trang hướng dẫn có sẵn nút cài kết nối và đường dẫn thư mục trên máy.</p><a href="/extension" data-home="installGuide">Xem hướng dẫn cài tiện ích</a></details>
+        <details><summary data-home="faq3Title">Có cần giữ Cào Cào đang chạy không?</summary><p data-home="faq3">Ứng dụng Cào Cào cần chạy trên máy để mở thư viện. Sau khi cài kết nối trên Windows, tiện ích có thể tự mở ứng dụng khi bạn dùng.</p></details>
+      </div>
+    </section>
+  </main>
+  <footer class="site-footer"><div><a class="footer-brand" href="/">Cào Cào</a><p data-home="footer">Một chỗ cho điều bạn muốn học.</p></div><nav aria-label="Liên kết cuối trang" data-home-aria="footerNav"><a href="/app#library" data-home="openLibrary">Mở thư viện</a><a href="/extension" data-home="installGuide">Hướng dẫn cài tiện ích</a><a href="/app#quick" data-home="quick">Công cụ tải dữ liệu</a></nav></footer>
+</body>
+</html>

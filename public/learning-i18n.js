@@ -1,4 +1,7 @@
 export const learningStrings = {
+  'learn.extensionWhy': ['Đọc nội dung trong tab đã đăng nhập, xem mẫu rồi lưu vào cùng thư viện.', 'Read content from your signed-in tab, preview it and save to the same library.'],
+  'learn.extensionSetup': ['Tải tiện ích và xem cách cài', 'Download and set up the extension'],
+  'learn.extensionOptional': ['Tùy chọn. Bạn vẫn có thể dán đường dẫn bên dưới.', 'Optional. You can still paste a link below.'],
   'learn.extension':['Lưu từ trang đang mở bằng tiện ích Chrome / Edge','Save from the current tab with the Chrome / Edge extension'],
   'learn.nav':['Thư viện học tập','Learning library'],
   'learn.title':['Giữ lại điều bạn muốn học.','Keep what you want to learn.'],

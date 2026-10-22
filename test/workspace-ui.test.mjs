@@ -27,7 +27,7 @@ before(async () => {
 after(async () => { await ui?.close(); await app?.close(); await new Promise(resolve => fixture.close(resolve)); });
 
 test('Source form saves API pagination/fields/download/schedule; language switch keeps form values and focus', async () => {
-  const page = ui.page; await page.goto(origin);
+  const page = ui.page; await page.goto(origin + '/app');
   await page.locator('[data-panel="sources"]').click();
   await page.locator('#profile-name').fill('Nguồn nghiên cứu'); await page.locator('#profile-url').fill(remote + '/data');
   await page.locator('#profile-mode').selectOption('api'); await page.locator('#profile-api-url').fill(remote + '/data');

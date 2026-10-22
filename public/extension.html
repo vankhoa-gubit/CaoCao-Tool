@@ -1,17 +1,25 @@
 <!doctype html>
-<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Cào Cào trong trình duyệt</title><link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="/extension.css"><script type="module" src="/extension-setup.js"></script></head>
-<body><main class="extension-setup">
-  <div class="setup-nav"><a href="/#library" data-setup="home">Cào Cào / Thư viện</a><button id="setup-language" type="button" aria-label="Language">EN</button></div>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="Tải tiện ích Cào Cào cho Chrome và Edge. Lưu bài viết và bộ thẻ từ tab đang mở vào thư viện trên máy, kèm hướng dẫn cài đặt."><title>Cào Cào trong trình duyệt</title><link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="/site.css"><link rel="stylesheet" href="/extension.css"><script type="module" src="/extension-setup.js"></script></head>
+<body class="site-page"><main class="extension-setup">
+  <nav class="setup-nav" aria-label="Cào Cào"><a href="/" class="footer-brand">Cào Cào</a><a href="/app#library" data-setup="home">Mở thư viện</a><button id="setup-language" type="button" aria-label="Switch to English">EN</button></nav>
   <header><h1 data-setup="title">Lưu ngay từ trang bạn đang đọc.</h1><p data-setup="intro"></p></header>
+  <div class="setup-download"><div><h2 data-setup="downloadTitle"></h2><p data-setup="development"></p><p class="hint" data-setup="compatibility"></p></div><a class="site-button" href="/extension-download" download data-setup="download"></a></div>
+  <section class="setup-reasons" aria-labelledby="setup-why"><h2 id="setup-why" data-setup="whyTitle"></h2><dl class="setup-benefits">
+    <div><dt data-setup="sessionTitle"></dt><dd data-setup="sessionBenefit"></dd></div>
+    <div><dt data-setup="previewTitle"></dt><dd data-setup="previewBenefit"></dd></div>
+    <div><dt data-setup="libraryTitle"></dt><dd data-setup="libraryBenefit"></dd></div>
+  </dl><p class="hint" data-setup="optional"></p></section>
+  <h2 id="install-title" data-setup="installTitle"></h2><p class="hint" data-setup="setupOnce"></p>
   <p id="setup-status" role="status"></p>
-  <ol class="setup-steps">
+  <ol class="setup-steps" aria-labelledby="install-title">
     <li><h2 data-setup="connectionTitle"></h2><p data-setup="connectionHint"></p><button id="install-connection" type="button" class="primary" data-setup="install"></button><p class="hint" data-setup="installerHint"></p></li>
-    <li><h2 data-setup="extensionTitle"></h2><p data-setup="development"></p><p data-setup="loadUnpacked"></p>
+    <li><h2 data-setup="extensionTitle"></h2><p data-setup="loadUnpacked"></p>
       <div class="path-row"><input id="extension-path" type="text" readonly aria-label="Extension folder"><button id="copy-extension-path" type="button" data-setup="copy"></button></div>
-      <p class="hint"><a href="/extension-download" data-setup="download"></a> <span data-setup="zipHint"></span></p>
+      <details class="zip-help"><summary data-setup="zipTitle"></summary><p data-setup="zipHint"></p></details>
+      <p class="hint"><a href="https://developer.chrome.com/docs/extensions/get-started/tutorial/hello-world#load-unpacked" target="_blank" rel="noopener noreferrer" data-setup="chromeHelp"></a></p>
     </li>
     <li><h2 data-setup="usageTitle"></h2><p data-setup="usage"></p><p class="hint" data-setup="manual"></p></li>
   </ol>
-  <section><h2 data-setup="privacyTitle"></h2><p data-setup="privacy"></p><p class="hint" data-setup="limits"></p></section>
-  <p><a href="/#library" data-setup="back"></a></p>
+  <section><h2 data-setup="privacyTitle"></h2><p data-setup="privacy"></p><p class="hint" data-setup="permission"></p><p class="hint" data-setup="accessLimit"></p><details><summary data-setup="limitsTitle"></summary><p class="hint" data-setup="limits"></p></details></section>
+  <p><a href="/app#library" data-setup="back"></a></p>
 </main></body></html>

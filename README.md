@@ -6,7 +6,7 @@ Chọn **Tiếng Việt** hoặc **English** ở thanh đầu trang để chuy�
 
 ## Chạy tool
 
-Máy cần **Node.js 22.13 trở lên** và Chrome hoặc Edge. Trên Windows, nhấp đúp **start.cmd**: launcher kiểm tra Node/trình duyệt, cài dependencies bằng `npm ci` ở lần đầu nếu thiếu, rồi mở **Thư viện học tập**. Lần chuẩn bị đầu tiên cần mạng. Để kiểm tra môi trường mà chưa chạy server: `node scripts/launch.mjs --check`.
+Máy cần **Node.js 22.13 trở lên** và Chrome hoặc Edge. Trên Windows, nhấp đúp **start.cmd**: launcher kiểm tra Node/trình duyệt, cài dependencies bằng `npm ci` ở lần đầu nếu thiếu, rồi mở **trang chủ giới thiệu**. Chọn **Mở thư viện** để vào ứng dụng. Lần chuẩn bị đầu tiên cần mạng. Để kiểm tra môi trường mà chưa chạy server: `node scripts/launch.mjs --check`.
 
 Nếu dùng terminal, chạy trong thư mục dự án:
 
@@ -18,6 +18,14 @@ npm start
 Mở địa chỉ được in trong terminal, mặc định `http://127.0.0.1:4317`. Có thể nhấp đúp `start.cmd` để mở tool. Nếu cổng bận, tool thử cổng kế tiếp. Chọn cổng riêng bằng `node src/server.mjs --port 4500`.
 
 Nếu không có Chrome/Edge, chạy `npx playwright install chromium`. Có thể chọn trình duyệt qua biến `CAOCAO_BROWSER=chrome` hoặc `msedge`.
+
+### Trang chủ và lối vào ứng dụng
+
+- `/`: giới thiệu thư viện, thẻ học thử, lợi ích tiện ích Chrome / Edge, so sánh hai cách lưu và nút tải ZIP.
+- `/app#library`: thư viện học tập; `/app#quick`, `/app#sources`, `/app#data`: các công cụ thu thập dữ liệu. Liên kết cũ `/#library` vẫn đưa đến thư viện.
+- `/extension`: tải tiện ích, giải thích khi nào nên dùng và hướng dẫn cài một lần. Website vẫn hoạt động khi chưa cài tiện ích; quét URL phụ thuộc quyền truy cập của trang nguồn.
+
+Trang chủ và trang cài đặt có tiếng Việt / English, dùng chung lựa chọn ngôn ngữ với ứng dụng.
 
 ## Tiện ích Chrome / Edge (0.1.0 · Windows)
 

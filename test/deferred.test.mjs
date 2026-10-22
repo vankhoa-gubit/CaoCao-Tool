@@ -97,7 +97,7 @@ test('Nhận diện: metadata của danh sách khác không làm kết thúc s�
 });
 
 test('UI E2E: URL → tìm cụm sau 28 lần Next → API → đủ 370/370 qua 13 cụm', { timeout: 90000 }, async () => {
-  await ui.page.goto(appOrigin);
+  await ui.page.goto(appOrigin + '/app');
   await ui.page.locator('#site-url').fill(origin + '/study/370');
   const bootstrapBefore = calls.filter(call => call.method === 'POST').length;
   await ui.page.locator('#scan-button').click();
